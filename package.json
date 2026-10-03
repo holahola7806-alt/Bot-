@@ -1,0 +1,12 @@
+{
+  "name": "secret-game-hub",
+  "version": "2.5.2",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.0",
+    "dotenv": "^16.4.7"
+  }
+}
