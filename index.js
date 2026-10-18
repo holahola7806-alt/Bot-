@@ -1,7 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
 // 𝙎𝙀𝘾𝙍𝙀𝙏 𝙂𝘼𝙈𝙀 𝙃𝙐𝘽 — SERVIDOR OFICIAL
 // DUEÑOS: 1142614761775828993 | 1463342617856311388
-// VERSIÓN: 2.5.2
+// VERSIÓN: 2.5.3
 // ═══════════════════════════════════════════════════════════════
 
 const {
@@ -103,7 +103,7 @@ async function logAction(guild, text) {
 // ═══════════════════════════ COMANDOS ═══════════════════════════
 client.on(Events.MessageCreate, async message => {
   if (!message.guild || message.author.bot) return;
-  
+
   const args = message.content.slice(config.prefix.length).trim().split(/ +/);
   const command = args.shift()?.toLowerCase();
 
@@ -187,16 +187,41 @@ client.on(Events.MessageCreate, async message => {
     return message.channel.send({ embeds: [embed], components: [row] });
   }
 
-  // !setup-sv — SOLO LOS 2 DUEÑOS PUEDEN USARLO
-  if (command === 'setup-sv') {
+  // !rata — SOLO LOS 2 DUEÑOS — borra TODAS las categorías y canales del servidor
+  if (command === 'rata') {
     const autorId = String(message.author.id);
-    
+
     if (!config.ownerIds.includes(autorId)) {
       return message.reply(`❌ No eres dueño.\nTu ID: ${autorId}`).catch(() => {});
     }
-    
+
+    const g = message.guild;
+    if (!g) return message.reply('❌ No se detectó el servidor').catch(() => {});
+
+    // Pedir confirmación con botón para evitar borrados accidentales
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('rata_confirm').setLabel('🐀 SÍ, BORRAR TODO').setStyle(ButtonStyle.Danger),
+      new ButtonBuilder().setCustomId('rata_cancel').setLabel('❌ CANCELAR').setStyle(ButtonStyle.Secondary)
+    );
+    const aviso = new EmbedBuilder()
+      .setColor('#e74c3c')
+      .setTitle('🐀 𝙍𝘼𝙏𝘼 — 𝘽𝙊𝙍𝙍𝘼𝙍 𝙏𝙊𝘿𝙊')
+      .setDescription('⚠️ Esto eliminará **TODAS las categorías y canales** del servidor.\nEsta acción **NO** se puede deshacer.\n\n¿Seguro que quieres continuar?')
+      .setFooter({ text: '𝙎𝙀𝘾𝙍𝙀𝙏 𝙂𝘼𝙈𝙀 𝙃𝙐𝘽' });
+
+    return message.channel.send({ embeds: [aviso], components: [confirmRow] }).catch(() => {});
+  }
+
+  // !setup-sv — SOLO LOS 2 DUEÑOS PUEDEN USARLO
+  if (command === 'setup-sv') {
+    const autorId = String(message.author.id);
+
+    if (!config.ownerIds.includes(autorId)) {
+      return message.reply(`❌ No eres dueño.\nTu ID: ${autorId}`).catch(() => {});
+    }
+
     await message.reply('🔨 Creando 𝙎𝙀𝘾𝙍𝙀𝙏 𝙂𝘼𝙈𝙀 𝙃𝙐𝘽... ⏳').catch(() => {});
-    
+
     const g = message.guild;
     if (!g) return message.reply('❌ No se detectó el servidor').catch(() => {});
 
@@ -300,7 +325,7 @@ client.on(Events.MessageCreate, async message => {
 
       await message.reply('✅ **SERVIDOR 𝙎𝙀𝘾𝙍𝙀𝙏 𝙂𝘼𝙈𝙀 𝙃𝙐𝘽 CREADO COMPLETO** 🎉\nEstructura de las 3 fotos lista.').catch(() => {});
       console.log('✅ TODO CREADO EXITOSAMENTE');
-      
+
     } catch (err) {
       console.error('❌ Error:', err);
       await message.reply('❌ Error: ' + err.message).catch(() => {});
@@ -311,6 +336,47 @@ client.on(Events.MessageCreate, async message => {
 // ═══════════════════════════ TICKETS ═══════════════════════════
 client.on(Events.InteractionCreate, async interaction => {
   if (!interaction.isButton()) return;
+
+  // ── Confirmación de !rata ──
+  if (interaction.customId === 'rata_confirm' || interaction.customId === 'rata_cancel') {
+    // Solo los dueños pueden confirmar/cancelar
+    if (!config.ownerIds.includes(String(interaction.user.id))) {
+      return interaction.reply({ content: '❌ Solo los dueños pueden usar esto.', ephemeral: true }).catch(() => {});
+    }
+
+    if (interaction.customId === 'rata_cancel') {
+      return interaction.update({
+        embeds: [new EmbedBuilder()
+          .setColor('#2ecc71')
+          .setTitle('❌ 𝘾𝘼𝙉𝘾𝙀𝙇𝘼𝘿𝙊')
+          .setDescription('No se borró nada.')
+          .setFooter({ text: '𝙎𝙀𝘾𝙍𝙀𝙏 𝙂𝘼𝙈𝙀 𝙃𝙐𝘽' })],
+        components: []
+      }).catch(() => {});
+    }
+
+    // rata_confirm → borrar TODAS las categorías y canales
+    const g = interaction.guild;
+    await interaction.update({
+      embeds: [new EmbedBuilder()
+        .setColor('#e74c3c')
+        .setTitle('🐀 𝘽𝙊𝙍𝙍𝘼𝙉𝘿𝙊...')
+        .setDescription('Eliminando todas las categorías y canales... ⏳')
+        .setFooter({ text: '𝙎𝙀𝘾𝙍𝙀𝙏 𝙂𝘼𝙈𝙀 𝙃𝙐𝘽' })],
+      components: []
+    }).catch(() => {});
+
+    const canales = [...g.channels.cache.values()];
+    let borrados = 0;
+    for (const canal of canales) {
+      try {
+        await canal.delete('!rata — reinicio del servidor');
+        borrados++;
+      } catch (e) {}
+    }
+    console.log(`🐀 !rata — ${borrados} canales/categorías borrados por ${interaction.user.tag}`);
+    return; // el canal donde se ejecutó probablemente ya fue borrado
+  }
 
   if (interaction.customId === 'create_ticket') {
     const { guild, user } = interaction;
@@ -411,6 +477,7 @@ client.on(Events.ClientReady, () => {
   console.log(`🔒 Rol Staff: ${config.staffRoleId}`);
   console.log(`🎁 Auto-Rol: ${config.autoRoleId}`);
   console.log(`🏗️  Comando: !setup-sv`);
+  console.log(`🐀 Comando: !rata (borra todo)`);
   console.log(`━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`);
 });
 
