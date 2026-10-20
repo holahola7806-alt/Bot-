@@ -1,10 +1,9 @@
 // index.js — Bot SHOP GALÁCTICO PvE (ARK Survival Evolved)
 // Requiere: discord.js v14  →  npm install discord.js
 // Variables de entorno (en Railway → Variables):
-//   TOKEN               Token del bot
-//   CLIENT_ID           ID de la aplicación del bot
-//   GUILD_ID            ID de tu servidor
-//   STAFF_ROLE_ID       Rol que atiende los tickets (opcional pero recomendado)
+//   TOKEN               Token del bot (OBLIGATORIO)
+//   OWNER_ID            Tu ID de Discord: el único que puede usar /shop
+//   STAFF_ROLE_ID       Rol que atiende los tickets (opcional)
 //   TICKET_CATEGORY_ID  Categoría donde se crean los tickets (opcional)
 //   VIP_ROLE_ID         Rol VIP (si no lo pones, usa el de tu anuncio)
 
@@ -13,11 +12,17 @@ try { require('dotenv').config(); } catch {} // solo si usas .env en tu compu
 const {
   Client, GatewayIntentBits, Events, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ChannelType,
-  PermissionFlagsBits, REST, Routes, SlashCommandBuilder, MessageFlags,
+  PermissionFlagsBits, SlashCommandBuilder, MessageFlags,
 } = require('discord.js');
 
-const { TOKEN, CLIENT_ID, GUILD_ID, STAFF_ROLE_ID, TICKET_CATEGORY_ID } = process.env;
+const { TOKEN, STAFF_ROLE_ID, TICKET_CATEGORY_ID } = process.env;
+const OWNER_ID = process.env.OWNER_ID || '1463342617856311388';
 const VIP_ROLE_ID = process.env.VIP_ROLE_ID || '1382450619297693717';
+
+if (!TOKEN) {
+  console.error('❌ Falta la variable TOKEN. Agrégala en Railway → Variables.');
+  process.exit(1);
+}
 
 // ─────────────── CONFIGURACIÓN DE LA SHOP ───────────────
 const INCLUYE = [
@@ -89,22 +94,31 @@ const comandos = [
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 ].map((c) => c.toJSON());
 
+// Registra /shop en cada servidor donde está el bot (aparece al instante)
+async function registrarComandos(guild) {
+  try {
+    await guild.commands.set(comandos);
+    console.log(`✅ /shop registrado en ${guild.name}`);
+  } catch (err) {
+    console.error(`❌ Error registrando comandos en ${guild.name}:`, err);
+  }
+}
+
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Conectado como ${c.user.tag}`);
-  try {
-    const rest = new REST({ version: '10' }).setToken(TOKEN);
-    await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: comandos });
-    console.log('✅ Comando /shop registrado');
-  } catch (err) {
-    console.error('❌ Error registrando comandos:', err);
-  }
+  for (const guild of c.guilds.cache.values()) await registrarComandos(guild);
 });
+
+client.on(Events.GuildCreate, registrarComandos);
 
 // ─────────────── INTERACCIONES ───────────────
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
     // /shop → publica el anuncio
     if (interaction.isChatInputCommand() && interaction.commandName === 'shop') {
+      if (interaction.user.id !== OWNER_ID) {
+        return interaction.reply({ content: '❌ Solo el dueño de la shop puede usar este comando.', flags: MessageFlags.Ephemeral });
+      }
       await interaction.channel.send({ embeds: [embedShop()], components: [filaComprar()] });
       return interaction.reply({ content: '✅ Shop publicada.', flags: MessageFlags.Ephemeral });
     }
@@ -145,6 +159,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
             PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory,
           ],
         },
+        {
+          id: OWNER_ID,
+          allow: [
+            PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.AttachFiles, PermissionFlagsBits.ReadMessageHistory,
+          ],
+        },
       ];
       if (STAFF_ROLE_ID) {
         permisos.push({
@@ -177,7 +198,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         .setFooter({ text: 'Espera a que el staff te atienda. Manda aquí tu comprobante de pago.' });
 
       await canal.send({
-        content: `${user}${STAFF_ROLE_ID ? ` <@&${STAFF_ROLE_ID}>` : ''}`,
+        content: `${user} <@${OWNER_ID}>${STAFF_ROLE_ID ? ` <@&${STAFF_ROLE_ID}>` : ''}`,
         embeds: [embedTicket],
         components: [filaCerrar()],
       });
@@ -189,6 +210,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.isButton() && interaction.customId === 'ticket_cerrar') {
       const esDueno = interaction.channel.topic === `ticket:${interaction.user.id}`;
       const esStaff =
+        interaction.user.id === OWNER_ID ||
         (STAFF_ROLE_ID && interaction.member.roles.cache.has(STAFF_ROLE_ID)) ||
         interaction.memberPermissions.has(PermissionFlagsBits.Administrator);
 
