@@ -297,16 +297,16 @@ const ESTRUCTURA = [
 async function ejecutarSetup(guild) {
   console.log(`🔨 Iniciando configuración en: ${guild.name}`);
 
-  // 1️⃣ BORRAR TODO: canales y categorías
+  // BORRAR TODO
   const todosCanales = await guild.channels.fetch();
   for (const [id, canal] of todosCanales) {
-    if (canal.type === ChannelType.GuildText || canal.type === ChannelType.GuildCategory || canal.type === ChannelType.GuildVoice) {
+    if ([ChannelType.GuildText, ChannelType.GuildCategory, ChannelType.GuildVoice].includes(canal.type)) {
       await canal.delete().catch(err => console.log(`⚠️ No se pudo borrar ${canal.name}: ${err.message}`));
-      await new Promise(res => setTimeout(res, 300)); // Evitar límite de la API
+      await new Promise(res => setTimeout(res, 300));
     }
   }
 
-  // 2️⃣ CREAR ESTRUCTURA DESDE CERO
+  // CREAR ESTRUCTURA
   for (const cat of ESTRUCTURA) {
     const categoria = await guild.channels.create({
       name: cat.nombre,
@@ -329,7 +329,6 @@ async function ejecutarSetup(guild) {
         permissionOverwrites: permisos,
       });
 
-      // Mensaje de bienvenida en el canal
       await canalCreado.send({
         embeds: [new EmbedBuilder()
           .setColor(COLOR_ANUNCIO)
@@ -339,7 +338,7 @@ async function ejecutarSetup(guild) {
         ]
       }).catch(() => {});
 
-      await new Promise(res => setTimeout(res, 200)); // Evitar límite de la API
+      await new Promise(res => setTimeout(res, 200));
     }
   }
 
@@ -347,7 +346,43 @@ async function ejecutarSetup(guild) {
   return true;
 }
 
-// ─────────────── CLIENTE Y COMANDOS ───────────────
+// ─────────────── COMANDOS ───────────────
+const soloDueno = PermissionFlagsBits.Administrator;
+
+const comandos = [
+  ...Object.keys(PRODUCTOS).map((clave) =>
+    new SlashCommandBuilder()
+      .setName(clave)
+      .setDescription(`Publica la shop del token ${clave.toUpperCase()} (compra)`)
+      .setDefaultMemberPermissions(soloDueno),
+  ),
+  new SlashCommandBuilder()
+    .setName('rw')
+    .setDescription('Publica un token de reward (sin precios)')
+    .setDefaultMemberPermissions(soloDueno)
+    .addSubcommand(sub => sub.setName('pve').setDescription('Reward del token PvE'))
+    .addSubcommand(sub => sub.setName('pvp').setDescription('Reward del token PvP'))
+    .addSubcommand(sub => sub.setName('2b').setDescription('Reward del token 2B')),
+  new SlashCommandBuilder()
+    .setName('say')
+    .setDescription('El bot escribe tu texto en este canal')
+    .setDefaultMemberPermissions(soloDueno)
+    .addStringOption(o => o.setName('texto').setDescription('Lo que va a escribir el bot (usa \\n para saltos de línea)').setRequired(true).setMaxLength(2000)),
+  new SlashCommandBuilder()
+    .setName('anuncio')
+    .setDescription('El bot publica tu texto como anuncio en este canal')
+    .setDefaultMemberPermissions(soloDueno)
+    .addStringOption(o => o.setName('texto').setDescription('El texto del anuncio (usa \\n para saltos de línea)').setRequired(true).setMaxLength(4000))
+    .addStringOption(o => o.setName('mencion').setDescription('¿A quién mencionar? (opcional)')
+      .addChoices({ name: '@everyone', value: '@everyone' }, { name: '@here', value: '@here' })),
+  new SlashCommandBuilder()
+    .setName('setup')
+    .setDescription('⚠️ BORRA TODO y crea la estructura del servidor desde cero')
+    .setDefaultMemberPermissions(soloDueno)
+    .addBooleanOption(o => o.setName('confirmar').setDescription('CONFIRMA que quieres BORRAR todos los canales y categorías').setRequired(true))
+].map(c => c.toJSON());
+
+// ─────────────── CLIENTE Y ARRANQUE ───────────────
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -355,109 +390,53 @@ const client = new Client({
   ]
 });
 
-const soloDueno = PermissionFlagsBits.Administrator;
-
-const comandos = [
-  // /pve, /pvp, /2b
-  ...Object.keys(PRODUCTOS).map((clave) =>
-    new SlashCommandBuilder()
-      .setName(clave)
-      .setDescription(`Publica la shop del token ${clave.toUpperCase()} (compra)`)
-      .setDefaultMemberPermissions(soloDueno),
-  ),
-  // /rw
-  (() => {
-    const rw = new SlashCommandBuilder()
-      .setName('rw')
-      .setDescription('Publica un token de reward (sin precios)')
-      .setDefaultMemberPermissions(soloDueno);
-    for (const clave of Object.keys(PRODUCTOS)) {
-      rw.addSubcommand((sub) =>
-        sub.setName(clave).setDescription(`Reward del token ${clave.toUpperCase()}`),
-      );
-    }
-    return rw;
-  })(),
-  // /say
-  new SlashCommandBuilder()
-    .setName('say')
-    .setDescription('El bot escribe tu texto en este canal')
-    .setDefaultMemberPermissions(soloDueno)
-    .addStringOption((o) =>
-      o.setName('texto').setDescription('Lo que va a escribir el bot (usa \\n para saltos de línea)')
-        .setRequired(true).setMaxLength(2000),
-    ),
-  // /anuncio
-  new SlashCommandBuilder()
-    .setName('anuncio')
-    .setDescription('El bot publica tu texto como anuncio en este canal')
-    .setDefaultMemberPermissions(soloDueno)
-    .addStringOption((o) =>
-      o.setName('texto').setDescription('El texto del anuncio (usa \\n para saltos de línea)')
-        .setRequired(true).setMaxLength(4000),
-    )
-    .addStringOption((o) =>
-      o.setName('mencion').setDescription('¿A quién mencionar? (opcional)')
-        .addChoices(
-          { name: '@everyone', value: '@everyone' },
-          { name: '@here', value: '@here' },
-          { name: '@everyone y @here', value: '@everyone @here' },
-        ),
-    ),
-  // ✅ NUEVO: /setup
-  new SlashCommandBuilder()
-    .setName('setup')
-    .setDescription('⚠️ BORRA TODO y crea la estructura del servidor desde cero')
-    .setDefaultMemberPermissions(soloDueno)
-    .addBooleanOption(o =>
-      o.setName('confirmar')
-        .setDescription('CONFIRMA que quieres BORRAR todos los canales y categorías')
-        .setRequired(true)
-    ),
-].map((c) => c.toJSON());
-
-async function registrarComandos(guild) {
-  try {
-    await guild.commands.set(comandos);
-    console.log(`✅ Comandos registrados en ${guild.name}`);
-  } catch (err) {
-    console.error(`❌ Error registrando comandos en ${guild.name}:`, err);
-  }
-}
-
 client.once(Events.ClientReady, async (c) => {
   console.log(`✅ Conectado como ${c.user.tag}`);
-  for (const guild of c.guilds.cache.values()) await registrarComandos(guild);
+  for (const guild of c.guilds.cache.values()) {
+    try {
+      console.log(`🔄 Recargando comandos en: ${guild.name}`);
+      await guild.commands.set([]);
+      await new Promise(r => setTimeout(r, 1200));
+      await guild.commands.set(comandos);
+      console.log(`✅ Comandos listos en: ${guild.name}`);
+    } catch (err) {
+      console.error(`❌ Error en ${guild.name}:`, err);
+    }
+  }
 });
 
-client.on(Events.GuildCreate, registrarComandos);
+client.on(Events.GuildCreate, async (guild) => {
+  try {
+    await guild.commands.set(comandos);
+    console.log(`✅ Servidor nuevo detectado, comandos registrados: ${guild.name}`);
+  } catch (err) {
+    console.error(err);
+  }
+});
 
 // ─────────────── INTERACCIONES ───────────────
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // ── /setup ──
+    // /setup
     if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
       if (interaction.user.id !== OWNER_ID) {
-        return interaction.reply({ content: '❌ SOLO el dueño absoluto puede usar /setup.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '❌ SOLO el dueño puede usar /setup.', flags: MessageFlags.Ephemeral });
       }
       const confirmar = interaction.options.getBoolean('confirmar');
       if (!confirmar) {
-        return interaction.reply({ content: '❌ Debes marcar "confirmar" como verdadero para proceder.', flags: MessageFlags.Ephemeral });
+        return interaction.reply({ content: '❌ Debes confirmar marcando Sí.', flags: MessageFlags.Ephemeral });
       }
-
       await interaction.reply({
-        content: '⚠️ **ATENCIÓN:** Se van a BORRAR TODOS los canales y categorías y se creará la estructura nueva.\nEsto puede tardar unos segundos...',
+        content: '⚠️ **ATENCIÓN:** Se van a BORRAR TODOS los canales y categorías...\nEsto puede tardar unos segundos, no toques nada.',
         flags: MessageFlags.Ephemeral
       });
-
       await ejecutarSetup(interaction.guild);
-
       return interaction.editReply({
-        content: '✅ **ESTRUCTURA CREADA COMPLETAMENTE.** Revisa tu servidor, todo está listo con el formato de las fotos + `Admin-Chat` privado para el staff.'
+        content: '✅ **ESTRUCTURA CREADA COMPLETAMENTE.** Revisa tu servidor, todo está listo con el formato de las fotos + `Admin-Chat` privado.'
       });
     }
 
-    // ── Resto de comandos ──
+    // Resto de comandos
     if (interaction.isChatInputCommand()) {
       if (interaction.user.id !== OWNER_ID) {
         return interaction.reply({ content: '❌ Solo el dueño de la shop puede usar este comando.', flags: MessageFlags.Ephemeral });
