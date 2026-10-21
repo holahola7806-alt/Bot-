@@ -2,6 +2,13 @@
 // PARTE DE ESTRUCTURA DEL SERVIDOR / SETUP
 // ==================================================
 
+const { ChannelType, PermissionFlagsBits, EmbedBuilder } = require('discord.js');
+
+// TOMAMOS TUS VARIABLES DIRECTAMENTE, SIN REPETIR NADA
+const OWNER_ID = process.env.OWNER_ID;
+const STAFF_ROLE_ID = process.env.STAFF_ROLE_ID;
+const COLOR_CABECERA = 0x7b2cbf;
+
 const ESTRUCTURA = [
   {
     nombre: '━━━━━━━━ 「 𝗜𝗡𝗙𝗢 」 ━━━━━━━━━━',
@@ -72,64 +79,56 @@ const ESTRUCTURA = [
   }
 ];
 
-// Ejecutar la creación rápida
 async function ejecutarSetup(guild) {
   console.log(`🔨 Iniciando configuración en: ${guild.name}`);
 
-  // BORRAR TODO RÁPIDO — sin esperas innecesarias
-  const canales = await guild.channels.fetch();
-  const borrarPromesas = [];
-  for (const [id, canal] of canales) {
-    if ([0, 2, 4].includes(canal.type)) { // Texto, Voz, Categoría
-      borrarPromesas.push(
-        canal.delete().catch(err => console.log(`⚠️ No se pudo borrar: ${canal.name}`))
-      );
+  // BORRAR TODO RÁPIDO
+  const todosCanales = await guild.channels.fetch();
+  const promesasBorrar = [];
+  for (const [, canal] of todosCanales) {
+    if ([ChannelType.GuildText, ChannelType.GuildCategory, ChannelType.GuildVoice].includes(canal.type)) {
+      promesasBorrar.push(canal.delete().catch(e => console.log(`⚠️ ${canal.name}: ${e.message}`)));
     }
   }
-  await Promise.allSettled(borrarPromesas);
-  console.log(`🗑️ Canales y categorías borrados`);
+  await Promise.allSettled(promesasBorrar);
+  console.log(`🗑️ Canales borrados`);
 
-  // CREAR TODO RÁPIDO
-  const COLOR_CABECERA = 0x7b2cbf;
-  const ID_DUEÑO = process.env.OWNER_ID || '1463342617856311388';
-   const ID_STAFF = process.env.STAFF_ROLE_ID;
-
-  for (const categoria of ESTRUCTURA) {
-    const catCreada = await guild.channels.create({
-      name: categoria.nombre,
-      type: 4, // Categoría
+  // CREAR ESTRUCTURA
+  for (const cat of ESTRUCTURA) {
+    const categoria = await guild.channels.create({
+      name: cat.nombre,
+      type: ChannelType.GuildCategory,
       position: 0
     });
 
-    for (const datosCanal of categoria.canales) {
+    for (const ch of cat.canales) {
       const permisos = [];
 
-      if (datosCanal.privado) {
+      if (ch.privado) {
         permisos.push(
-          { id: guild.roles.everyone.id, deny: [1024] }, // Quitar ver
-          { id: ID_DUEÑO, allow: [1024, 2048, 4096] } // Ver, escribir, leer historial
+          { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+          { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }
         );
-        if (ID_STAFF) {
-          permisos.push({ id: ID_STAFF, allow: [1024, 2048, 4096] });
+        if (STAFF_ROLE_ID) {
+          permisos.push({ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] });
         }
       }
 
-      const canal = await guild.channels.create({
-        name: datosCanal.nombre,
-        type: 0, // Texto
-        parent: catCreada.id,
-        topic: datosCanal.desc,
+      const canalCreado = await guild.channels.create({
+        name: ch.nombre,
+        type: ChannelType.GuildText,
+        parent: categoria.id,
+        topic: ch.desc,
         permissionOverwrites: permisos
       });
 
-      // Mensaje de bienvenida en cada canal
-      canal.send({
-        embeds: [{
-          color: COLOR_CABECERA,
-          title: `📌 ${datosCanal.nombre.replace(/^[^\s]+\s/, '')}`,
-          description: datosCanal.desc,
-          timestamp: new Date().toISOString()
-        }]
+      canalCreado.send({
+        embeds: [new EmbedBuilder()
+          .setColor(COLOR_CABECERA)
+          .setTitle(`📌 ${ch.nombre.replace(/^[^\s]+\s/, '')}`)
+          .setDescription(ch.desc)
+          .setTimestamp()
+        ]
       }).catch(() => {});
     }
   }
@@ -137,3 +136,24 @@ async function ejecutarSetup(guild) {
   console.log(`✅ SERVIDOR CREADO COMPLETAMENTE`);
   return true;
 }
+
+// COMANDO SETUP — usa tus variables directamente
+const comandoSetup = {
+  name: 'setup',
+  description: '⚠️ BORRA TODO y crea la estructura',
+  options: [
+    {
+      type: 5,
+      name: 'confirmar',
+      description: '¿Seguro que quieres borrar todo?',
+      required: true
+    }
+  ],
+  defaultMemberPermissions: PermissionFlagsBits.Administrator
+};
+
+// AL USARLO:
+// if (interaction.commandName === 'setup') {
+//   if (interaction.user.id !== OWNER_ID) return ...;
+//   await ejecutarSetup(interaction.guild);
+// }
