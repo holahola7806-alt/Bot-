@@ -6,6 +6,13 @@
 //   /anuncio texto         → el bot publica tu texto como anuncio
 //   (en /say y /anuncio escribe \n donde quieras un salto de línea)
 //   /setup                 → crea las categorías y canales del servidor (no borra nada)
+//   /agregar invites cantidad persona → suma (o resta con negativo) invites a alguien
+// Comandos para TODOS:
+//   /invites [usuario]     → cuántas personas ha invitado y quiénes son
+//
+// Para contar invites solo, en el Developer Portal (Bot → Privileged Gateway Intents)
+// activa "Server Members Intent", y dale al bot el permiso "Gestionar servidor".
+// Las invites se guardan en /data/invites.json (volumen de Railway).
 //
 // Requiere: discord.js v14  →  npm install discord.js
 // Variables de entorno (en Railway → Variables):
@@ -17,8 +24,10 @@
 
 try { require('dotenv').config(); } catch {} // solo si usas .env en tu compu
 
+const fs = require('fs');
+const path = require('path');
 const {
-  Client, GatewayIntentBits, Events, EmbedBuilder, ActionRowBuilder,
+  Client, GatewayIntentBits, Partials, Events, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ChannelType,
   PermissionFlagsBits, SlashCommandBuilder, MessageFlags,
 } = require('discord.js');
@@ -268,7 +277,7 @@ async function crearTicket(interaction, { tipo, clave, campos }) {
     { id: user.id, allow: permisosLectura },
     { id: OWNER_ID, allow: permisosLectura },
     {
-      id: client.user.id,
+      id: interaction.client.user.id,
       allow: [
         PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
         PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory,
@@ -307,9 +316,125 @@ async function crearTicket(interaction, { tipo, clave, campos }) {
   return { canal };
 }
 
-// ─────────────── CLIENTE Y COMANDOS ───────────────
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// ─────────────── INVITES ───────────────
+const CARPETA_DATOS = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.env.DATA_DIR || path.join(__dirname, 'data');
+const ARCHIVO_INVITES = path.join(CARPETA_DATOS, 'invites.json');
+// { servidorId: { usuarios: { id: { regulares, salidas, bonus } }, invitados: { id: { por, fecha, salio } } } }
+let datosInvites = {};
+let guardadoPendiente = null;
 
+function cargarInvites() {
+  try {
+    fs.mkdirSync(CARPETA_DATOS, { recursive: true });
+    if (fs.existsSync(ARCHIVO_INVITES)) datosInvites = JSON.parse(fs.readFileSync(ARCHIVO_INVITES, 'utf8'));
+    console.log(`📁 Invites guardadas en ${ARCHIVO_INVITES}`);
+  } catch (err) {
+    console.error('❌ No pude leer invites.json; lo respaldo y empiezo de cero:', err.message);
+    try { fs.renameSync(ARCHIVO_INVITES, `${ARCHIVO_INVITES}.roto-${Date.now()}`); } catch {}
+  }
+}
+
+function guardarInvites() {
+  if (!guardadoPendiente) guardadoPendiente = setTimeout(guardarInvitesYa, 2000);
+}
+
+function guardarInvitesYa() {
+  clearTimeout(guardadoPendiente);
+  guardadoPendiente = null;
+  try {
+    fs.mkdirSync(CARPETA_DATOS, { recursive: true });
+    fs.writeFileSync(`${ARCHIVO_INVITES}.tmp`, JSON.stringify(datosInvites));
+    fs.renameSync(`${ARCHIVO_INVITES}.tmp`, ARCHIVO_INVITES);
+  } catch (err) {
+    console.error('❌ No pude guardar invites.json:', err.message);
+  }
+}
+
+for (const senal of ['SIGTERM', 'SIGINT']) {
+  process.once(senal, () => { guardarInvitesYa(); process.exit(0); });
+}
+
+const datosServidor = (guildId) => (datosInvites[guildId] ||= { usuarios: {}, invitados: {} });
+const cuentaInvites = (guildId, userId) => (datosServidor(guildId).usuarios[userId] ||= { regulares: 0, salidas: 0, bonus: 0 });
+const totalInvites = (c) => c.regulares - c.salidas + c.bonus;
+
+// Usos de cada invitación del servidor, para saber cuál se usó cuando alguien entra
+const usosInvites = new Map(); // servidorId → Map(código → { usos, inviter, max })
+const datosInvitacion = (inv) => ({ usos: inv.uses ?? 0, inviter: inv.inviter?.id ?? inv.inviterId ?? null, max: inv.maxUses ?? 0 });
+
+async function leerInvitaciones(guild) {
+  try {
+    const invites = await guild.invites.fetch();
+    const mapa = new Map();
+    for (const inv of invites.values()) mapa.set(inv.code, datosInvitacion(inv));
+    usosInvites.set(guild.id, mapa);
+    return mapa;
+  } catch {
+    console.error(`⚠️ No pude leer las invitaciones de ${guild.name}. Dale al bot el permiso "Gestionar servidor".`);
+    return null;
+  }
+}
+
+async function alEntrarMiembro(member) {
+  const { guild } = member;
+  const antes = usosInvites.get(guild.id) || new Map();
+  const ahora = await leerInvitaciones(guild);
+  if (member.user.bot) return;
+
+  let inviter = null;
+  if (ahora) {
+    for (const [codigo, d] of ahora) {
+      if (d.usos > (antes.get(codigo)?.usos ?? 0)) { inviter = d.inviter; break; }
+    }
+    if (!inviter) {
+      // Invitaciones de usos limitados que desaparecieron justo al usarse
+      const agotadas = [...antes].filter(([codigo, d]) => !ahora.has(codigo) && d.max > 0 && d.usos + 1 >= d.max);
+      if (agotadas.length === 1) inviter = agotadas[0][1].inviter;
+    }
+  }
+  if (inviter === member.id) inviter = null;
+
+  const srv = datosServidor(guild.id);
+  const previo = srv.invitados[member.id];
+  if (previo?.por && previo.por === inviter) {
+    // Regresó con la misma persona: se le quita la salida
+    if (previo.salio) { const c = cuentaInvites(guild.id, inviter); c.salidas = Math.max(0, c.salidas - 1); }
+  } else if (inviter) {
+    cuentaInvites(guild.id, inviter).regulares++;
+  }
+  srv.invitados[member.id] = { por: inviter, fecha: Date.now(), salio: false };
+  guardarInvites();
+  console.log(`👋 ${member.user.tag} entró a ${guild.name}${inviter ? ` (invitado por ${inviter})` : ' (no se supo quién lo invitó)'}`);
+}
+
+async function alSalirMiembro(member) {
+  const srv = datosServidor(member.guild.id);
+  const registro = srv.invitados[member.id];
+  if (!registro || registro.salio) return;
+  registro.salio = true;
+  if (registro.por) cuentaInvites(member.guild.id, registro.por).salidas++;
+  guardarInvites();
+}
+
+function embedInvites(guild, user, nombre) {
+  const c = cuentaInvites(guild.id, user.id);
+  const invitados = Object.entries(datosServidor(guild.id).invitados)
+    .filter(([, d]) => d.por === user.id)
+    .sort((a, b) => b[1].fecha - a[1].fecha);
+  let lista = invitados.slice(0, 15)
+    .map(([id, d]) => `${d.salio ? '❌' : '✅'} <@${id}> · <t:${Math.floor(d.fecha / 1000)}:R>`)
+    .join('\n');
+  if (invitados.length > 15) lista += `\n…y ${invitados.length - 15} más`;
+
+  return new EmbedBuilder()
+    .setColor(COLOR_ANUNCIO)
+    .setAuthor({ name: `Invites de ${nombre}`, iconURL: user.displayAvatarURL() })
+    .setDescription(`Tiene **${totalInvites(c)}** invites\n✅ ${c.regulares} entraron · ❌ ${c.salidas} se salieron · ⭐ ${c.bonus} extra`)
+    .addFields({ name: `👥 Personas que invitó (${invitados.length})`, value: lista || 'Todavía no ha invitado a nadie.' })
+    .setFooter({ text: '✅ sigue en el servidor · ❌ se salió' });
+}
+
+// ─────────────── COMANDOS ───────────────
 const soloAdmins = PermissionFlagsBits.Administrator;
 
 const comandos = [
@@ -349,6 +474,24 @@ const comandos = [
     .setDescription('Crea las categorías y canales del servidor (no borra nada)')
     .setDefaultMemberPermissions(soloAdmins),
 
+  // /invites → para todos
+  new SlashCommandBuilder()
+    .setName('invites')
+    .setDescription('Muestra cuántas personas has invitado y quiénes son')
+    .addUserOption((o) => o.setName('usuario').setDescription('De quién quieres ver las invites (opcional)')),
+
+  // /agregar invites cantidad persona → solo el dueño
+  new SlashCommandBuilder()
+    .setName('agregar')
+    .setDescription('Agregar cosas (solo el dueño)')
+    .setDefaultMemberPermissions(soloAdmins)
+    .addSubcommand((sub) =>
+      sub.setName('invites').setDescription('Suma invites a alguien (usa negativo para quitar)')
+        .addIntegerOption((o) => o.setName('cantidad').setDescription('Cuántas invites (ej. 5, o -5 para quitar)')
+          .setRequired(true).setMinValue(-100000).setMaxValue(100000))
+        .addUserOption((o) => o.setName('persona').setDescription('A quién').setRequired(true)),
+    ),
+
   new SlashCommandBuilder()
     .setName('anuncio')
     .setDescription('El bot publica tu texto como anuncio en este canal')
@@ -377,16 +520,17 @@ async function registrarComandos(guild) {
   }
 }
 
-client.once(Events.ClientReady, async (c) => {
-  console.log(`✅ Conectado como ${c.user.tag}`);
-  for (const guild of c.guilds.cache.values()) await registrarComandos(guild);
-});
-
-client.on(Events.GuildCreate, registrarComandos);
-
 // ─────────────── INTERACCIONES ───────────────
-client.on(Events.InteractionCreate, async (interaction) => {
+async function manejarInteraccion(interaction) {
   try {
+    // ── /invites (lo pueden usar todos) ──
+    if (interaction.isChatInputCommand() && interaction.commandName === 'invites') {
+      const user = interaction.options.getUser('usuario') || interaction.user;
+      const miembro = interaction.options.getMember('usuario') || (user.id === interaction.user.id ? interaction.member : null);
+      const nombre = miembro?.displayName || user.globalName || user.username;
+      return interaction.reply({ embeds: [embedInvites(interaction.guild, user, nombre)], allowedMentions: { parse: [] } });
+    }
+
     // ── Comandos (solo el dueño) ──
     if (interaction.isChatInputCommand()) {
       if (interaction.user.id !== OWNER_ID) {
@@ -415,6 +559,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         await interaction.channel.send({ content: conSaltos(interaction.options.getString('texto')) });
         return interaction.deleteReply();
+      }
+
+      // /agregar invites cantidad persona
+      if (cmd === 'agregar' && interaction.options.getSubcommand() === 'invites') {
+        const cantidad = interaction.options.getInteger('cantidad');
+        const persona = interaction.options.getUser('persona');
+        const c = cuentaInvites(interaction.guildId, persona.id);
+        c.bonus += cantidad;
+        guardarInvites();
+        return interaction.reply({
+          content: `✅ ${cantidad >= 0 ? 'Le agregué' : 'Le quité'} **${Math.abs(cantidad)}** invites a ${persona}. Ahora tiene **${totalInvites(c)}**.`,
+          flags: MessageFlags.Ephemeral,
+        });
       }
 
       // /setup → pide confirmación antes de crear todo
@@ -554,6 +711,62 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (interaction.replied || interaction.deferred) interaction.followUp(msg).catch(() => {});
     else interaction.reply(msg).catch(() => {});
   }
-});
+}
 
-client.login(TOKEN);
+// ─────────────── ARRANQUE ───────────────
+function crearCliente(conMiembros) {
+  const intents = [GatewayIntentBits.Guilds, GatewayIntentBits.GuildInvites];
+  if (conMiembros) intents.push(GatewayIntentBits.GuildMembers);
+  const client = new Client({ intents, partials: [Partials.GuildMember] });
+
+  client.once(Events.ClientReady, async (listo) => {
+    console.log(`✅ Conectado como ${listo.user.tag}`);
+    for (const guild of listo.guilds.cache.values()) {
+      await registrarComandos(guild);
+      await leerInvitaciones(guild);
+    }
+    if (!conMiembros) {
+      console.warn('⚠️ Las invites NO se cuentan solas: activa "Server Members Intent" en el Developer Portal y reinicia el bot.');
+    }
+  });
+
+  client.on(Events.GuildCreate, async (guild) => {
+    await registrarComandos(guild);
+    await leerInvitaciones(guild);
+  });
+
+  client.on(Events.InteractionCreate, manejarInteraccion);
+
+  client.on(Events.InviteCreate, (inv) => {
+    if (!inv.guild) return;
+    const mapa = usosInvites.get(inv.guild.id) || new Map();
+    mapa.set(inv.code, datosInvitacion(inv));
+    usosInvites.set(inv.guild.id, mapa);
+  });
+
+  if (conMiembros) {
+    client.on(Events.GuildMemberAdd, (m) => alEntrarMiembro(m).catch((e) => console.error('❌ Error contando invite:', e)));
+    client.on(Events.GuildMemberRemove, (m) => alSalirMiembro(m).catch((e) => console.error('❌ Error contando salida:', e)));
+  }
+  return client;
+}
+
+async function arrancar() {
+  cargarInvites();
+  let client = crearCliente(true);
+  try {
+    await client.login(TOKEN);
+  } catch (err) {
+    const texto = String(err?.message || err);
+    if (!/disallowed intents|privileged intent/i.test(texto) && err?.code !== 4014) throw err;
+    console.warn('⚠️ Discord no dejó usar "Server Members Intent". Arranco sin contar invites solas.');
+    await client.destroy();
+    client = crearCliente(false);
+    await client.login(TOKEN);
+  }
+}
+
+arrancar().catch((err) => {
+  console.error('❌ No pude arrancar el bot:', err);
+  process.exit(1);
+});
