@@ -9,7 +9,7 @@
 //   /agregar invites cantidad persona → suma (o resta con negativo) invites a alguien
 // Comandos para TODOS:
 //   /invites [usuario]     → cuántas personas ha invitado y quiénes son
-//   owo ...                → juego tipo OwO (está en owo.js). Escribe "owo help" en Discord.
+//   0w0 ...                → juego tipo OwO (está en owo.js). Escribe "0w0 help" en Discord.
 //                            Necesita "Message Content Intent" activado en el Developer Portal.
 //
 // Para contar invites solo, en el Developer Portal (Bot → Privileged Gateway Intents)
