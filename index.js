@@ -92,7 +92,7 @@ async function ejecutarSetup(guild) {
   // CREAR TODO RÁPIDO
   const COLOR_CABECERA = 0x7b2cbf;
   const ID_DUEÑO = process.env.OWNER_ID || '1463342617856311388';
-  const ID_STAFF = process.env.STAFF_ROLE_ID;
+   const ID_STAFF = process.env.STAFF_ROLE_ID;
 
   for (const categoria of ESTRUCTURA) {
     const catCreada = await guild.channels.create({
