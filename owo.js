@@ -1,7 +1,8 @@
 // owo.js — Juego tipo OwO para el bot de la Shop Galáctico
 // Se activa desde index.js:  require('./owo').iniciarJuego(client, { ownerId })
 // (index.js también llama a guardarDatos() cuando el bot se apaga)
-// Prefijo "owo"  →  ejemplos: owo hunt · owo zoo · owo daily · owo help
+// Prefijo "0w0" (con ceros, para no chocar con el bot OwO)  →  0w0 hunt · 0w0 zoo · 0w0 help
+// En el casino (slots, coinflip, blackjack, highlow, snailgarden y lotería) el dueño siempre gana.
 // Los datos se guardan en /data/owo.json (volumen de Railway) para que no se borren.
 // Necesita "Message Content Intent" activado en el Developer Portal de Discord.
 
@@ -12,7 +13,7 @@ const {
 } = require('discord.js');
 
 // ─────────────── AJUSTES ───────────────
-const PREFIJO = 'owo';
+const PREFIJO = '0w0';
 const ZONA_HORARIA = 'America/Mazatlan';
 const COLOR = 0xf5a623;
 const M = '💰';                    // símbolo del cowoncy
@@ -200,9 +201,9 @@ function buscarArma(u, txt) {
 
 // ─────────────── TIENDA ───────────────
 const TIENDA = {
-  anillo:  { num: 1, nombre: 'Anillo de boda',        emoji: '💍', precio: 5000, desc: 'Lo necesitas para casarte (owo marry).' },
-  lootbox: { num: 2, nombre: 'Lootbox',               emoji: '🎁', precio: 500,  desc: 'Ábrela con owo lootbox.' },
-  crate:   { num: 3, nombre: 'Caja de armas',         emoji: '🧰', precio: 1500, desc: 'Ábrela con owo crate.' },
+  anillo:  { num: 1, nombre: 'Anillo de boda',        emoji: '💍', precio: 5000, desc: 'Lo necesitas para casarte (0w0 marry).' },
+  lootbox: { num: 2, nombre: 'Lootbox',               emoji: '🎁', precio: 500,  desc: 'Ábrela con 0w0 lootbox.' },
+  crate:   { num: 3, nombre: 'Caja de armas',         emoji: '🧰', precio: 1500, desc: 'Ábrela con 0w0 crate.' },
   amuleto: { num: 4, nombre: 'Amuleto de la suerte',  emoji: '🍀', precio: 2500, desc: '1 hora con más suerte al cazar (se activa al comprarlo).' },
 };
 
@@ -249,7 +250,7 @@ const TIPOS_MISION = {
   ganar:   { texto: (n) => `Gana ${n} batallas`,               rango: [2, 5],   premio: [400, 800] },
   casino:  { texto: (n) => `Juega ${n} veces en el casino`,    rango: [5, 15],  premio: [300, 600] },
   vender:  { texto: (n) => `Vende o sacrifica ${n} animales`,  rango: [10, 40], premio: [300, 600] },
-  galleta: { texto: () => 'Regala 1 galleta (owo cookie)',     rango: [1, 1],   premio: [200, 300] },
+  galleta: { texto: () => 'Regala 1 galleta (0w0 cookie)',     rango: [1, 1],   premio: [200, 300] },
   rezar:   { texto: (n) => `Reza o maldice ${n} veces`,        rango: [2, 3],   premio: [250, 400] },
 };
 
@@ -334,7 +335,7 @@ function enfriamiento(ctx, clave, seg) {
 function leerApuesta(ctx, txt) {
   const n = leerCantidad(txt, Math.min(ctx.u.cash, MAX_APUESTA));
   if (n === null) {
-    ctx.responder(`🎲 | Escribe cuánto quieres apostar. Ejemplo: \`owo ${ctx.cmd} 100\``);
+    ctx.responder(`🎲 | Escribe cuánto quieres apostar. Ejemplo: \`0w0 ${ctx.cmd} 100\``);
     return null;
   }
   if (n < 1) { ctx.responder(`🚫 | **${ctx.nombre}**, la apuesta mínima es 1 ${M}.`); return null; }
@@ -364,12 +365,12 @@ const CATEGORIAS = {
 
 // ═══════════ 🐾 MASCOTAS ═══════════
 comando('hunt', {
-  alias: ['h', 'cazar'], cat: 'mascotas', uso: 'owo hunt',
+  alias: ['h', 'cazar'], cat: 'mascotas', uso: '0w0 hunt',
   desc: `Sal a cazar animales. Cuesta ${COSTO_CAZA} ${M} y se puede usar cada 15 segundos.`,
   run: async (ctx) => {
     const u = ctx.u;
     if (u.cash < COSTO_CAZA) {
-      return ctx.responder(`🚫 | **${ctx.nombre}**, necesitas ${COSTO_CAZA} ${M} para cazar. Cobra tu \`owo daily\`.`);
+      return ctx.responder(`🚫 | **${ctx.nombre}**, necesitas ${COSTO_CAZA} ${M} para cazar. Cobra tu \`0w0 daily\`.`);
     }
     if (enfriamiento(ctx, 'hunt', 15)) return;
     u.cash -= COSTO_CAZA;
@@ -401,7 +402,7 @@ comando('hunt', {
 });
 
 comando('zoo', {
-  alias: ['z', 'zoologico'], cat: 'mascotas', uso: 'owo zoo [@usuario]',
+  alias: ['z', 'zoologico'], cat: 'mascotas', uso: '0w0 zoo [@usuario]',
   desc: 'Muestra la colección de animales, separada por rareza.',
   run: async (ctx, args) => {
     const [otro] = await mencionados(ctx, args);
@@ -426,7 +427,7 @@ comando('zoo', {
 });
 
 comando('inventory', {
-  alias: ['inv', 'inventario'], cat: 'mascotas', uso: 'owo inv',
+  alias: ['inv', 'inventario'], cat: 'mascotas', uso: '0w0 inv',
   desc: 'Muestra tus objetos, recursos y armas.',
   run: async (ctx) => {
     const u = ctx.u;
@@ -438,7 +439,7 @@ comando('inventory', {
     ].join('\n');
 
     const armas = [...u.armas].reverse();
-    let txtArmas = armas.slice(0, 15).map(textoArma).join('\n') || 'No tienes armas. Abre una caja con `owo crate`.';
+    let txtArmas = armas.slice(0, 15).map(textoArma).join('\n') || 'No tienes armas. Abre una caja con `0w0 crate`.';
     if (armas.length > 15) txtArmas += `\n…y ${armas.length - 15} más`;
 
     const embed = new EmbedBuilder()
@@ -454,12 +455,12 @@ comando('inventory', {
 });
 
 comando('lootbox', {
-  alias: ['lb'], cat: 'mascotas', uso: 'owo lootbox [cantidad|all]',
+  alias: ['lb'], cat: 'mascotas', uso: '0w0 lootbox [cantidad|all]',
   desc: 'Abre lootboxes: dan cowoncy y a veces cajas de armas.',
   run: async (ctx, args) => {
     const u = ctx.u;
     const tiene = u.inv.lootbox || 0;
-    if (!tiene) return ctx.responder(`🎁 | **${ctx.nombre}**, no tienes lootboxes. Cómpralas con \`owo buy lootbox\`.`);
+    if (!tiene) return ctx.responder(`🎁 | **${ctx.nombre}**, no tienes lootboxes. Cómpralas con \`0w0 buy lootbox\`.`);
     const n = Math.min(tiene, leerCantidad(args[0] ?? '1', tiene) ?? 1);
     if (n < 1) return ctx.responder('🚫 | Cantidad no válida.');
     let dinero = 0, cajas = 0;
@@ -478,30 +479,30 @@ comando('lootbox', {
 });
 
 comando('crate', {
-  alias: ['wc', 'caja', 'weaponcrate'], cat: 'mascotas', uso: 'owo crate [cantidad|all]',
+  alias: ['wc', 'caja', 'weaponcrate'], cat: 'mascotas', uso: '0w0 crate [cantidad|all]',
   desc: 'Abre cajas de armas para equipar a tus mascotas.',
   run: async (ctx, args) => {
     const u = ctx.u;
     const tiene = u.inv.crate || 0;
-    if (!tiene) return ctx.responder(`🧰 | **${ctx.nombre}**, no tienes cajas de armas. Cómpralas con \`owo buy crate\`.`);
+    if (!tiene) return ctx.responder(`🧰 | **${ctx.nombre}**, no tienes cajas de armas. Cómpralas con \`0w0 buy crate\`.`);
     const n = Math.min(tiene, leerCantidad(args[0] ?? '1', tiene) ?? 1);
     if (n < 1) return ctx.responder('🚫 | Cantidad no válida.');
     u.inv.crate -= n;
     const nuevas = Array.from({ length: n }, () => crearArma(u));
     let lista = nuevas.slice(0, 10).map(textoArma).join('\n');
-    if (nuevas.length > 10) lista += `\n…y ${nuevas.length - 10} más (míralas en \`owo inv\`)`;
-    return ctx.responder(`🧰 | **${ctx.nombre}** abrió **${n}** caja${n > 1 ? 's' : ''} y obtuvo:\n${lista}\n> Equípalas con \`owo equip <#arma> <animal>\``);
+    if (nuevas.length > 10) lista += `\n…y ${nuevas.length - 10} más (míralas en \`0w0 inv\`)`;
+    return ctx.responder(`🧰 | **${ctx.nombre}** abrió **${n}** caja${n > 1 ? 's' : ''} y obtuvo:\n${lista}\n> Equípalas con \`0w0 equip <#arma> <animal>\``);
   },
 });
 
 comando('owodex', {
-  alias: ['dex', 'od'], cat: 'mascotas', uso: 'owo owodex [animal]',
+  alias: ['dex', 'od'], cat: 'mascotas', uso: '0w0 owodex [animal]',
   desc: 'Catálogo de todos los animales y cuántos se han cazado en total.',
   run: async (ctx, args) => {
     const u = ctx.u;
     if (args[0]) {
       const a = buscarAnimal(args.join(' '));
-      if (!a) return ctx.responder('❓ | No encontré ese animal. Mira la lista con `owo owodex`.');
+      if (!a) return ctx.responder('❓ | No encontré ese animal. Mira la lista con `0w0 owodex`.');
       const r = RAREZAS[a.rareza];
       const embed = new EmbedBuilder()
         .setColor(COLOR)
@@ -537,7 +538,7 @@ function venderOSacrificar(modo) {
     const vender = modo === 'vender';
     const verbo = vender ? 'sell' : 'sacrifice';
     if (!args[0]) {
-      return ctx.responder(`📝 | Uso: \`owo ${verbo} <animal|rareza|all> [cantidad]\`\nEjemplos: \`owo ${verbo} perro\` · \`owo ${verbo} comun\` · \`owo ${verbo} all\``);
+      return ctx.responder(`📝 | Uso: \`0w0 ${verbo} <animal|rareza|all> [cantidad]\`\nEjemplos: \`0w0 ${verbo} perro\` · \`0w0 ${verbo} comun\` · \`0w0 ${verbo} all\``);
     }
     const disponible = (id) => Math.max(0, (u.zoo[id] || 0) - (u.equipo.includes(id) ? 1 : 0));
     const todo = /^(all|todo|todos)$/i.test(args[0]);
@@ -553,7 +554,7 @@ function venderOSacrificar(modo) {
     } else if (rareza || todo) {
       lista = Object.values(ANIMALES).filter((a) => todo || a.rareza === rareza).map((a) => [a.id, disponible(a.id)]);
     } else {
-      return ctx.responder('❓ | No encontré ese animal o rareza. Mira la lista con `owo owodex`.');
+      return ctx.responder('❓ | No encontré ese animal o rareza. Mira la lista con `0w0 owodex`.');
     }
     lista = lista.filter(([, n]) => n > 0);
     if (!lista.length) {
@@ -575,24 +576,24 @@ function venderOSacrificar(modo) {
     if (detalle.length > 1500) detalle = `${detalle.slice(0, 1500)}…`;
     return ctx.responder(vender
       ? `💸 | **${ctx.nombre}** vendió ${detalle} y ganó **${fmt(ganancia)}** ${M}`
-      : `🔪 | **${ctx.nombre}** sacrificó ${detalle} y obtuvo **${fmt(ganancia)}** ✨ de esencia\n> Úsala con \`owo train <animal> <esencia>\``);
+      : `🔪 | **${ctx.nombre}** sacrificó ${detalle} y obtuvo **${fmt(ganancia)}** ✨ de esencia\n> Úsala con \`0w0 train <animal> <esencia>\``);
   };
 }
 
 comando('sell', {
-  alias: ['vender'], cat: 'mascotas', uso: 'owo sell <animal|rareza|all> [cantidad]',
+  alias: ['vender'], cat: 'mascotas', uso: '0w0 sell <animal|rareza|all> [cantidad]',
   desc: 'Vende animales por cowoncy. Siempre se guarda 1 de cada animal de tu equipo.',
   run: venderOSacrificar('vender'),
 });
 
 comando('sacrifice', {
-  alias: ['sac', 'sacrificar'], cat: 'mascotas', uso: 'owo sacrifice <animal|rareza|all> [cantidad]',
+  alias: ['sac', 'sacrificar'], cat: 'mascotas', uso: '0w0 sacrifice <animal|rareza|all> [cantidad]',
   desc: 'Sacrifica animales a cambio de esencia (sirve para entrenar a tu equipo).',
   run: venderOSacrificar('sacrificar'),
 });
 
 comando('autohunt', {
-  alias: ['ah', 'huntbot'], cat: 'mascotas', uso: 'owo autohunt [cowoncy]',
+  alias: ['ah', 'huntbot'], cat: 'mascotas', uso: '0w0 autohunt [cowoncy]',
   desc: `Manda a tu robot a cazar por ti. Cada ${COSTO_AUTOHUNT} ${M} = 1 animal y tarda ${SEG_AUTOHUNT}s por animal.`,
   run: async (ctx, args) => {
     const u = ctx.u;
@@ -619,29 +620,29 @@ comando('autohunt', {
     }
 
     if (!args[0]) {
-      return ctx.responder(`🤖 | Uso: \`owo autohunt <cowoncy>\`. Cada ${COSTO_AUTOHUNT} ${M} = 1 animal, tarda ${SEG_AUTOHUNT}s por animal (máximo ${MAX_AUTOHUNT}).`);
+      return ctx.responder(`🤖 | Uso: \`0w0 autohunt <cowoncy>\`. Cada ${COSTO_AUTOHUNT} ${M} = 1 animal, tarda ${SEG_AUTOHUNT}s por animal (máximo ${MAX_AUTOHUNT}).`);
     }
     const gasto = leerCantidad(args[0], u.cash);
-    if (gasto === null) return ctx.responder('🚫 | Escribe cuánto cowoncy le das al robot. Ejemplo: `owo autohunt 500`');
+    if (gasto === null) return ctx.responder('🚫 | Escribe cuánto cowoncy le das al robot. Ejemplo: `0w0 autohunt 500`');
     const cantidad = Math.min(MAX_AUTOHUNT, Math.floor(gasto / COSTO_AUTOHUNT));
     if (cantidad < 1) return ctx.responder(`🚫 | Mínimo ${COSTO_AUTOHUNT} ${M}.`);
     const costo = cantidad * COSTO_AUTOHUNT;
     if (costo > u.cash) return ctx.responder(`🚫 | **${ctx.nombre}**, no tienes suficiente cowoncy (tienes ${fmt(u.cash)} ${M}).`);
     u.cash -= costo;
     u.autohunt = { cantidad, fin: Date.now() + cantidad * SEG_AUTOHUNT * 1000 };
-    return ctx.responder(`🤖 | **${ctx.nombre}** pagó **${fmt(costo)}** ${M}. Su robot salió a cazar **${cantidad}** animales y vuelve en **${tiempo(cantidad * SEG_AUTOHUNT * 1000)}**.\n> Cuando termine, escribe \`owo autohunt\` para recoger.`);
+    return ctx.responder(`🤖 | **${ctx.nombre}** pagó **${fmt(costo)}** ${M}. Su robot salió a cazar **${cantidad}** animales y vuelve en **${tiempo(cantidad * SEG_AUTOHUNT * 1000)}**.\n> Cuando termine, escribe \`0w0 autohunt\` para recoger.`);
   },
 });
 
 comando('train', {
-  alias: ['entrenar'], cat: 'batallas', uso: 'owo train <animal> <esencia|all>',
+  alias: ['entrenar'], cat: 'batallas', uso: '0w0 train <animal> <esencia|all>',
   desc: 'Usa esencia para darle experiencia a un animal de tu equipo (1 ✨ = 5 xp).',
   run: async (ctx, args) => {
     const u = ctx.u;
     const a = buscarAnimal(args[0]);
-    if (!a || !u.equipo.includes(a.id)) return ctx.responder('🚫 | Ese animal no está en tu equipo. Uso: `owo train <animal> <esencia>`');
+    if (!a || !u.equipo.includes(a.id)) return ctx.responder('🚫 | Ese animal no está en tu equipo. Uso: `0w0 train <animal> <esencia>`');
     const n = leerCantidad(args[1] ?? 'all', u.esencia);
-    if (!n || n < 1) return ctx.responder(`🚫 | No tienes esencia. Consíguela con \`owo sacrifice\`.`);
+    if (!n || n < 1) return ctx.responder(`🚫 | No tienes esencia. Consíguela con \`0w0 sacrifice\`.`);
     if (n > u.esencia) return ctx.responder(`🚫 | Solo tienes **${fmt(u.esencia)}** ✨.`);
     const antes = nivelAnimal(u, a.id);
     u.esencia -= n;
@@ -654,7 +655,7 @@ comando('train', {
 
 // ═══════════ 💰 ECONOMÍA ═══════════
 comando('cowoncy', {
-  alias: ['cash', 'money', 'dinero', 'bal'], cat: 'economia', uso: 'owo cash [@usuario]',
+  alias: ['cash', 'money', 'dinero', 'bal'], cat: 'economia', uso: '0w0 cash [@usuario]',
   desc: 'Muestra cuánto cowoncy tienes.',
   run: async (ctx, args) => {
     const [otro] = await mencionados(ctx, args);
@@ -664,7 +665,7 @@ comando('cowoncy', {
 });
 
 comando('daily', {
-  alias: ['diario'], cat: 'economia', uso: 'owo daily',
+  alias: ['diario'], cat: 'economia', uso: '0w0 daily',
   desc: 'Cobra tu recompensa diaria. Si cobras días seguidos, ganas más.',
   run: async (ctx) => {
     const u = ctx.u;
@@ -682,7 +683,7 @@ comando('daily', {
 });
 
 comando('quest', {
-  alias: ['q', 'misiones', 'mision'], cat: 'economia', uso: 'owo quest',
+  alias: ['q', 'misiones', 'mision'], cat: 'economia', uso: '0w0 quest',
   desc: 'Muestra tus 3 misiones del día. Al completarlas ganas cowoncy.',
   run: async (ctx) => {
     const lineas = misiones(ctx.u).map((m) => {
@@ -701,7 +702,7 @@ comando('quest', {
 });
 
 comando('checklist', {
-  alias: ['cl', 'pendientes'], cat: 'economia', uso: 'owo checklist',
+  alias: ['cl', 'pendientes'], cat: 'economia', uso: '0w0 checklist',
   desc: 'Revisa qué actividades diarias te faltan.',
   run: async (ctx) => {
     const u = ctx.u;
@@ -710,12 +711,12 @@ comando('checklist', {
     const rezo = (enfriamientos.get(`${ctx.id}:pray`) || 0) - Date.now();
     const ah = u.autohunt;
     const lineas = [
-      `${ok(u.ultimoDaily === fechaHoy())} Daily (\`owo daily\`)`,
-      `${ok(u.dia.galleta)} Regalar una galleta (\`owo cookie @alguien\`)`,
-      `${ok(hechas === 3)} Misiones ${hechas}/3 (\`owo quest\`)`,
-      `${ok(u.dia.boletos > 0)} Boleto de lotería (\`owo lottery buy\`)`,
-      rezo > 0 ? `⏳ Rezar/maldecir disponible en ${tiempo(rezo)}` : '⬜ Rezar o maldecir (`owo pray`)',
-      !ah ? '⬜ Autohunt (`owo autohunt`)' : Date.now() >= ah.fin ? '🎉 ¡Tu robot ya volvió! (`owo autohunt`)' : `⏳ Robot cazando, vuelve en ${tiempo(ah.fin - Date.now())}`,
+      `${ok(u.ultimoDaily === fechaHoy())} Daily (\`0w0 daily\`)`,
+      `${ok(u.dia.galleta)} Regalar una galleta (\`0w0 cookie @alguien\`)`,
+      `${ok(hechas === 3)} Misiones ${hechas}/3 (\`0w0 quest\`)`,
+      `${ok(u.dia.boletos > 0)} Boleto de lotería (\`0w0 lottery buy\`)`,
+      rezo > 0 ? `⏳ Rezar/maldecir disponible en ${tiempo(rezo)}` : '⬜ Rezar o maldecir (`0w0 pray`)',
+      !ah ? '⬜ Autohunt (`0w0 autohunt`)' : Date.now() >= ah.fin ? '🎉 ¡Tu robot ya volvió! (`0w0 autohunt`)' : `⏳ Robot cazando, vuelve en ${tiempo(ah.fin - Date.now())}`,
     ];
     const embed = new EmbedBuilder().setColor(COLOR).setTitle(`☑️ Pendientes de ${ctx.nombre}`).setDescription(lineas.join('\n'));
     return ctx.responder({ embeds: [embed] });
@@ -723,25 +724,25 @@ comando('checklist', {
 });
 
 comando('shop', {
-  alias: ['tienda'], cat: 'economia', uso: 'owo shop',
+  alias: ['tienda'], cat: 'economia', uso: '0w0 shop',
   desc: 'Muestra la tienda del juego.',
   run: async (ctx) => {
     const embed = new EmbedBuilder()
       .setColor(COLOR)
       .setTitle('🏪 Tienda')
       .setDescription(Object.values(TIENDA).map((it) => `\`${it.num}\` ${it.emoji} **${it.nombre}** — ${fmt(it.precio)} ${M}\n> ${it.desc}`).join('\n'))
-      .setFooter({ text: 'Compra con: owo buy <número o nombre> [cantidad]' });
+      .setFooter({ text: 'Compra con: 0w0 buy <número o nombre> [cantidad]' });
     return ctx.responder({ embeds: [embed] });
   },
 });
 
 comando('buy', {
-  alias: ['comprar'], cat: 'economia', uso: 'owo buy <número|nombre> [cantidad]',
-  desc: 'Compra algo de la tienda. Ejemplo: owo buy anillo',
+  alias: ['comprar'], cat: 'economia', uso: '0w0 buy <número|nombre> [cantidad]',
+  desc: 'Compra algo de la tienda. Ejemplo: 0w0 buy anillo',
   run: async (ctx, args) => {
     const u = ctx.u;
     const encontrado = args[0] && buscarItem(args[0]);
-    if (!encontrado) return ctx.responder('❓ | No encontré ese artículo. Mira la tienda con `owo shop`.');
+    if (!encontrado) return ctx.responder('❓ | No encontré ese artículo. Mira la tienda con `0w0 shop`.');
     const [clave, it] = encontrado;
     const n = leerCantidad(args[1] ?? '1', Math.floor(u.cash / it.precio));
     if (n === null || n < 1) return ctx.responder(`🚫 | **${ctx.nombre}**, no te alcanza para ${it.emoji} ${it.nombre} (${fmt(it.precio)} ${M}).`);
@@ -758,12 +759,12 @@ comando('buy', {
 });
 
 comando('give', {
-  alias: ['send', 'dar', 'pagar'], cat: 'economia', uso: 'owo give @usuario <cantidad>',
+  alias: ['send', 'dar', 'pagar'], cat: 'economia', uso: '0w0 give @usuario <cantidad>',
   desc: 'Regala cowoncy a otra persona.',
   run: async (ctx, args) => {
     const [otro] = await mencionados(ctx, args);
     const txt = args.find((a) => !/^<@/.test(a));
-    if (!otro || !txt) return ctx.responder('📝 | Uso: `owo give @usuario <cantidad>`');
+    if (!otro || !txt) return ctx.responder('📝 | Uso: `0w0 give @usuario <cantidad>`');
     if (otro.id === ctx.id) return ctx.responder('🤨 | No te puedes dar dinero a ti mismo.');
     if (otro.user.bot) return ctx.responder('🤖 | Los bots no usan cowoncy.');
     const n = leerCantidad(txt, ctx.u.cash);
@@ -777,9 +778,19 @@ comando('give', {
 
 // ═══════════ 🎰 CASINO ═══════════
 const SIMBOLOS = ['🍒', '🍋', '🍇', '🔔', '⭐', '💎'];
+const esDueno = (ctx) => OWNER_ID && ctx.id === OWNER_ID;
+
+// Tirada que siempre paga: a veces trío, casi siempre par
+function tiradaGanadora() {
+  const s = elegir(SIMBOLOS);
+  if (Math.random() < 0.3) return [s, s, s];
+  let otro;
+  do { otro = elegir(SIMBOLOS); } while (otro === s);
+  return [s, s, otro].sort(() => Math.random() - 0.5);
+}
 
 comando('slots', {
-  alias: ['s', 'tragamonedas'], cat: 'casino', uso: 'owo slots <cantidad|all>',
+  alias: ['s', 'tragamonedas'], cat: 'casino', uso: '0w0 slots <cantidad|all>',
   desc: 'Tragamonedas. Par = ×1.75 · Trío = ×5 · ⭐⭐⭐ = ×8 · 💎💎💎 = ×15',
   run: async (ctx, args) => {
     const apuesta = leerApuesta(ctx, args[0]);
@@ -788,7 +799,7 @@ comando('slots', {
     ctx.u.cash -= apuesta;
     avanzar(ctx, 'casino');
 
-    const r = [elegir(SIMBOLOS), elegir(SIMBOLOS), elegir(SIMBOLOS)];
+    const r = esDueno(ctx) ? tiradaGanadora() : [elegir(SIMBOLOS), elegir(SIMBOLOS), elegir(SIMBOLOS)];
     let mult = 0;
     if (r[0] === r[1] && r[1] === r[2]) mult = r[0] === '💎' ? 15 : r[0] === '⭐' ? 8 : 5;
     else if (r[0] === r[1] || r[1] === r[2] || r[0] === r[2]) mult = 1.75;
@@ -809,7 +820,7 @@ comando('slots', {
 });
 
 comando('coinflip', {
-  alias: ['cf', 'moneda'], cat: 'casino', uso: 'owo coinflip [cara|cruz] <cantidad>',
+  alias: ['cf', 'moneda'], cat: 'casino', uso: '0w0 coinflip [cara|cruz] <cantidad>',
   desc: 'Lanza una moneda. Si atinas, ganas el doble.',
   run: async (ctx, args) => {
     let lado = 'cara', txt;
@@ -823,7 +834,7 @@ comando('coinflip', {
     if (enfriamiento(ctx, 'casino', 3)) return;
     ctx.u.cash -= apuesta;
     avanzar(ctx, 'casino');
-    const salio = Math.random() < 0.5 ? 'cara' : 'cruz';
+    const salio = esDueno(ctx) ? lado : (Math.random() < 0.5 ? 'cara' : 'cruz');
     const gana = salio === lado;
     if (gana) ctx.u.cash += apuesta * 2;
     guardar();
@@ -862,7 +873,7 @@ function valorMano(mano) {
 const enPartida = new Set();
 
 comando('blackjack', {
-  alias: ['bj', '21'], cat: 'casino', uso: 'owo blackjack <cantidad>',
+  alias: ['bj', '21'], cat: 'casino', uso: '0w0 blackjack <cantidad>',
   desc: 'Juega 21 contra la casa. Gana ×2, blackjack natural ×2.5.',
   run: async (ctx, args) => {
     if (enPartida.has(ctx.id)) return ctx.responder('🃏 | Ya tienes una partida abierta. Termínala primero.');
@@ -874,8 +885,21 @@ comando('blackjack', {
     guardar();
 
     const mazo = nuevoMazo();
+    // Para el dueño, las cartas se escogen del mazo para que siempre gane
+    const dueno = esDueno(ctx);
+    // Recibe varias condiciones en orden de preferencia y usa la primera que se pueda cumplir
+    const sacar = (mano, ...condiciones) => {
+      if (dueno) {
+        for (const condicion of condiciones) {
+          const opciones = mazo.map((c, i) => [c, i]).filter(([c]) => condicion(valorMano([...mano, c])));
+          if (opciones.length) return mazo.splice(elegir(opciones)[1], 1)[0];
+        }
+      }
+      return mazo.pop();
+    };
     const yo = [mazo.pop(), mazo.pop()];
-    const casa = [mazo.pop(), mazo.pop()];
+    const casa = [mazo.pop()];
+    casa.push(sacar(casa, (v) => v >= 12 && v <= 16)); // la casa queda obligada a pedir
 
     const embedBJ = (mostrar, resultado) => new EmbedBuilder()
       .setColor(COLOR)
@@ -908,7 +932,9 @@ comando('blackjack', {
       activa = false;
       enPartida.delete(ctx.id);
       col.stop('fin');
-      if (!sePaso) while (valorMano(casa) < 17) casa.push(mazo.pop());
+      // Para el dueño: la casa se pasa de 21, o se queda abajo de 17 (y vuelve a pedir), o abajo del dueño
+      const pvDueno = valorMano(yo);
+      if (!sePaso) while (valorMano(casa) < 17) casa.push(sacar(casa, (v) => v > 21, (v) => v < 17, (v) => v < pvDueno));
       const pv = valorMano(yo), cv = valorMano(casa);
       let pago = 0, texto;
       if (pv > 21) texto = '💥 Te pasaste de 21. La casa gana.';
@@ -925,7 +951,7 @@ comando('blackjack', {
     col.on('collect', async (i) => {
       if (i.user.id !== ctx.id) return i.reply({ content: '🃏 Esta no es tu partida.', flags: MessageFlags.Ephemeral }).catch(() => {});
       if (i.customId === 'bj_pedir') {
-        yo.push(mazo.pop());
+        yo.push(sacar(yo, (v) => v <= 21)); // el dueño nunca se pasa
         const v = valorMano(yo);
         if (v > 21) return terminar(i, true);
         if (v === 21) return terminar(i, false);
@@ -938,7 +964,7 @@ comando('blackjack', {
 });
 
 comando('highlow', {
-  alias: ['hl', 'mayormenor'], cat: 'casino', uso: 'owo highlow <cantidad>',
+  alias: ['hl', 'mayormenor'], cat: 'casino', uso: '0w0 highlow <cantidad>',
   desc: 'Adivina si la siguiente carta es mayor o menor. El premio depende de qué tan difícil sea.',
   run: async (ctx, args) => {
     if (enPartida.has(ctx.id)) return ctx.responder('🃏 | Ya tienes una partida abierta. Termínala primero.');
@@ -950,7 +976,7 @@ comando('highlow', {
     guardar();
     enPartida.add(ctx.id);
 
-    const carta = () => { const n = rand(1, 13); return { n, txt: `\`${VALORES[n - 1]}${elegir(PALOS)}\`` }; };
+    const carta = (n = rand(1, 13)) => ({ n, txt: `\`${VALORES[n - 1]}${elegir(PALOS)}\`` });
     const actual = carta();
     const pMayor = (13 - actual.n) / 13, pMenor = (actual.n - 1) / 13;
     const mult = (p) => (p > 0 ? Math.round((0.95 / p) * 100) / 100 : 0);
@@ -971,8 +997,10 @@ comando('highlow', {
       activa = false;
       enPartida.delete(ctx.id);
       col.stop('fin');
-      const sig = carta();
       const eligioMayor = i.customId === 'hl_mayor';
+      const sig = esDueno(ctx)
+        ? carta(eligioMayor ? rand(actual.n + 1, 13) : rand(1, actual.n - 1))
+        : carta();
       let texto;
       if (sig.n === actual.n) { ctx.u.cash += apuesta; texto = '🤝 ¡Salió igual! Recuperas tu apuesta.'; }
       else if ((sig.n > actual.n) === eligioMayor) {
@@ -995,14 +1023,14 @@ comando('highlow', {
 });
 
 comando('snailgarden', {
-  alias: ['snail', 'caracoles', 'carrera'], cat: 'casino', uso: 'owo snailgarden <cantidad> [caracol 1-4]',
+  alias: ['snail', 'caracoles', 'carrera'], cat: 'casino', uso: '0w0 snailgarden <cantidad> [caracol 1-4]',
   desc: 'Apuesta en una carrera de 4 caracoles. Si gana el tuyo, te llevas ×3.6.',
   run: async (ctx, args) => {
     const apuesta = leerApuesta(ctx, args[0]);
     if (!apuesta) return;
     if (enfriamiento(ctx, 'casino', 3)) return;
     let mio = args[1] ? parseInt(args[1], 10) : rand(1, 4);
-    if (!(mio >= 1 && mio <= 4)) return ctx.responder('🐌 | Elige un caracol del 1 al 4. Ejemplo: `owo snailgarden 100 2`');
+    if (!(mio >= 1 && mio <= 4)) return ctx.responder('🐌 | Elige un caracol del 1 al 4. Ejemplo: `0w0 snailgarden 100 2`');
     ctx.u.cash -= apuesta;
     avanzar(ctx, 'casino');
 
@@ -1015,6 +1043,12 @@ comando('snailgarden', {
       cuadros.push([...pos]);
       const max = Math.max(...pos);
       if (max >= META) ganador = elegir(pos.map((p, k) => (p === max ? k : -1)).filter((k) => k >= 0)) + 1;
+    }
+    if (esDueno(ctx) && ganador !== mio) {
+      // Se intercambian las carreras de los dos caracoles para que gane el del dueño
+      const a = mio - 1, b = ganador - 1;
+      for (const c of cuadros) [c[a], c[b]] = [c[b], c[a]];
+      ganador = mio;
     }
     const gana = ganador === mio;
     const pago = gana ? Math.floor(apuesta * 3.6) : 0;
@@ -1043,6 +1077,7 @@ async function revisarLoteria(client) {
   const total = entradas.reduce((s, [, n]) => s + n, 0);
   let r = Math.random() * total, ganador = entradas[entradas.length - 1][0];
   for (const [id, n] of entradas) { r -= n; if (r < 0) { ganador = id; break; } }
+  if (OWNER_ID && L.boletos[OWNER_ID] > 0) ganador = OWNER_ID; // si el dueño compró boletos, gana él
   jugador(ganador).cash += L.bote;
   guardarYa();
   const canal = await client.channels.fetch(L.canal).catch(() => null);
@@ -1053,7 +1088,7 @@ async function revisarLoteria(client) {
 }
 
 comando('lottery', {
-  alias: ['lotto', 'loteria'], cat: 'casino', uso: 'owo lottery [buy <cantidad>]',
+  alias: ['lotto', 'loteria'], cat: 'casino', uso: '0w0 lottery [buy <cantidad>]',
   desc: `Compra boletos de ${COSTO_BOLETO} ${M}. Cada noche se sortea el bote entre los boletos.`,
   run: async (ctx, args) => {
     await revisarLoteria(ctx.msg.client);
@@ -1067,7 +1102,7 @@ comando('lottery', {
       const quedan = MAX_BOLETOS_DIA - u.dia.boletos;
       if (quedan <= 0) return ctx.responder(`🎟️ | **${ctx.nombre}**, ya compraste el máximo de ${MAX_BOLETOS_DIA} boletos hoy.`);
       const n = leerCantidad(txtCompra, Math.min(quedan, Math.floor(u.cash / COSTO_BOLETO)));
-      if (n === null || n < 1) return ctx.responder(`🚫 | **${ctx.nombre}**, cada boleto cuesta ${COSTO_BOLETO} ${M}. Ejemplo: \`owo lottery buy 5\``);
+      if (n === null || n < 1) return ctx.responder(`🚫 | **${ctx.nombre}**, cada boleto cuesta ${COSTO_BOLETO} ${M}. Ejemplo: \`0w0 lottery buy 5\``);
       if (n > quedan) return ctx.responder(`🚫 | Hoy solo puedes comprar **${quedan}** boletos más.`);
       const costo = n * COSTO_BOLETO;
       if (costo > u.cash) return ctx.responder(`🚫 | **${ctx.nombre}**, necesitas ${fmt(costo)} ${M}.`);
@@ -1086,7 +1121,7 @@ comando('lottery', {
       .setColor(COLOR)
       .setTitle('🎟️ Lotería')
       .setDescription(`${txtCompra ? `✅ **${ctx.nombre}** compró boletos.\n\n` : ''}💰 Bote: **${fmt(L.bote)}** ${M}\n🎫 Boletos vendidos: **${fmt(total)}**\n🙋 Tus boletos: **${mios}** (${prob}% de ganar)\n⏰ Sorteo en: **${tiempo(msHastaMedianoche())}**`)
-      .setFooter({ text: `Compra con: owo lottery buy <cantidad> · ${COSTO_BOLETO} cowoncy cada uno` });
+      .setFooter({ text: `Compra con: 0w0 lottery buy <cantidad> · ${COSTO_BOLETO} cowoncy cada uno` });
     return ctx.responder({ embeds: [embed] });
   },
 });
@@ -1139,17 +1174,17 @@ function simularBatalla(A, B) {
 const lineasEquipo = (eq) => eq.map((f) => `${f.emoji} Lv.${f.nivel} ${barra(f.hp, f.hpMax)} \`${f.hp}/${f.hpMax}\``).join('\n');
 
 comando('team', {
-  alias: ['equipo', 'squad'], cat: 'batallas', uso: 'owo team [add|remove <animal>]',
+  alias: ['equipo', 'squad'], cat: 'batallas', uso: '0w0 team [add|remove <animal>]',
   desc: 'Muestra o arma tu equipo de hasta 3 animales para pelear.',
   run: async (ctx, args) => {
     const u = ctx.u;
     const sub = norm(args[0]);
     if (['add', 'agregar', 'anadir', 'meter'].includes(sub)) {
       const a = buscarAnimal(args.slice(1).join(' '));
-      if (!a) return ctx.responder('📝 | Uso: `owo team add <animal>`. Ejemplo: `owo team add leon`');
+      if (!a) return ctx.responder('📝 | Uso: `0w0 team add <animal>`. Ejemplo: `0w0 team add leon`');
       if (!(u.zoo[a.id] > 0)) return ctx.responder(`🚫 | **${ctx.nombre}**, no tienes ningún ${a.emoji} ${a.nombre}.`);
       if (u.equipo.includes(a.id)) return ctx.responder(`🚫 | ${a.emoji} ${a.nombre} ya está en tu equipo.`);
-      if (u.equipo.length >= 3) return ctx.responder('🚫 | Tu equipo ya tiene 3 animales. Quita uno con `owo team remove <animal>`.');
+      if (u.equipo.length >= 3) return ctx.responder('🚫 | Tu equipo ya tiene 3 animales. Quita uno con `0w0 team remove <animal>`.');
       u.equipo.push(a.id);
       return ctx.responder(`✅ | ${a.emoji} **${a.nombre}** se unió al equipo de **${ctx.nombre}** (${u.equipo.length}/3).`);
     }
@@ -1163,7 +1198,7 @@ comando('team', {
     }
 
     if (!u.equipo.length) {
-      return ctx.responder('⚔️ | No tienes equipo todavía. Agrega animales con `owo team add <animal>` (máximo 3).');
+      return ctx.responder('⚔️ | No tienes equipo todavía. Agrega animales con `0w0 team add <animal>` (máximo 3).');
     }
     const embed = new EmbedBuilder()
       .setColor(COLOR)
@@ -1174,7 +1209,7 @@ comando('team', {
         const sig = 25 * f.nivel ** 2;
         return `**${k + 1}.** ${f.emoji} **${f.nombre}** Lv.${f.nivel} — ❤️ ${f.hpMax} · ⚔️ ${f.atk}\n`
           + `${barra(xp, sig, 10)} ${fmt(xp)}/${fmt(sig)} xp\n`
-          + (f.arma ? `└ ${textoArma(f.arma)}` : '└ Sin arma (`owo equip <#arma>`)');
+          + (f.arma ? `└ ${textoArma(f.arma)}` : '└ Sin arma (`0w0 equip <#arma>`)');
       }).join('\n\n'))
       .setFooter({ text: `Victorias: ${u.victorias} · Derrotas: ${u.derrotas}` });
     return ctx.responder({ embeds: [embed] });
@@ -1182,13 +1217,13 @@ comando('team', {
 });
 
 comando('equip', {
-  alias: ['equipar'], cat: 'batallas', uso: 'owo equip <#arma> [animal]',
+  alias: ['equipar'], cat: 'batallas', uso: '0w0 equip <#arma> [animal]',
   desc: 'Le pone un arma a un animal de tu equipo (1 arma por animal).',
   run: async (ctx, args) => {
     const u = ctx.u;
     const w = buscarArma(u, args[0]);
-    if (!w) return ctx.responder('📝 | Uso: `owo equip <#arma> [animal]`. Mira el número de tus armas en `owo inv`.');
-    if (!u.equipo.length) return ctx.responder('🚫 | Primero arma tu equipo con `owo team add <animal>`.');
+    if (!w) return ctx.responder('📝 | Uso: `0w0 equip <#arma> [animal]`. Mira el número de tus armas en `0w0 inv`.');
+    if (!u.equipo.length) return ctx.responder('🚫 | Primero arma tu equipo con `0w0 team add <animal>`.');
     let destino;
     if (args[1]) {
       const a = buscarAnimal(args.slice(1).join(' '));
@@ -1204,7 +1239,7 @@ comando('equip', {
 });
 
 comando('unequip', {
-  alias: ['desequipar'], cat: 'batallas', uso: 'owo unequip <#arma>',
+  alias: ['desequipar'], cat: 'batallas', uso: '0w0 unequip <#arma>',
   desc: 'Le quita un arma a tu animal.',
   run: async (ctx, args) => {
     const w = buscarArma(ctx.u, args[0]);
@@ -1215,11 +1250,11 @@ comando('unequip', {
 });
 
 comando('battle', {
-  alias: ['b', 'fight', 'pelea', 'pelear'], cat: 'batallas', uso: 'owo battle [@usuario]',
+  alias: ['b', 'fight', 'pelea', 'pelear'], cat: 'batallas', uso: '0w0 battle [@usuario]',
   desc: 'Pelea contra animales salvajes (ganas cowoncy y xp) o contra el equipo de otra persona.',
   run: async (ctx, args) => {
     const u = ctx.u;
-    if (!u.equipo.length) return ctx.responder('⚔️ | Primero arma tu equipo con `owo team add <animal>`.');
+    if (!u.equipo.length) return ctx.responder('⚔️ | Primero arma tu equipo con `0w0 team add <animal>`.');
     const [rival] = await mencionados(ctx, args);
     let ur = null, B, nombreRival;
     if (rival) {
@@ -1277,16 +1312,16 @@ comando('battle', {
 });
 
 comando('weaponshard', {
-  alias: ['ws', 'desarmar', 'dismantle'], cat: 'batallas', uso: 'owo weaponshard <#arma|all>',
-  desc: 'Desarma armas para conseguir fragmentos (sirven para owo upgrade). "all" desarma las que no están equipadas.',
+  alias: ['ws', 'desarmar', 'dismantle'], cat: 'batallas', uso: '0w0 weaponshard <#arma|all>',
+  desc: 'Desarma armas para conseguir fragmentos (sirven para 0w0 upgrade). "all" desarma las que no están equipadas.',
   run: async (ctx, args) => {
     const u = ctx.u;
     let lista;
     if (/^(all|todo|todas)$/i.test(args[0] || '')) lista = u.armas.filter((w) => !w.en);
     else { const w = buscarArma(u, args[0]); lista = w ? [w] : []; }
-    if (!args[0]) return ctx.responder('📝 | Uso: `owo weaponshard <#arma>` o `owo weaponshard all`');
+    if (!args[0]) return ctx.responder('📝 | Uso: `0w0 weaponshard <#arma>` o `0w0 weaponshard all`');
     if (!lista.length) return ctx.responder('🚫 | No encontré armas para desarmar.');
-    if (lista.some((w) => w.en)) return ctx.responder('🚫 | Esa arma está equipada. Quítala primero con `owo unequip`.');
+    if (lista.some((w) => w.en)) return ctx.responder('🚫 | Esa arma está equipada. Quítala primero con `0w0 unequip`.');
     const fragmentos = lista.reduce((s, w) => s + RAREZAS_ARMA[w.rareza].fragmentos + w.mejoras * 5, 0);
     const ids = new Set(lista.map((w) => w.id));
     u.armas = u.armas.filter((w) => !ids.has(w.id));
@@ -1296,12 +1331,12 @@ comando('weaponshard', {
 });
 
 comando('upgrade', {
-  alias: ['mejorar'], cat: 'batallas', uso: 'owo upgrade <#arma> [veces]',
+  alias: ['mejorar'], cat: 'batallas', uso: '0w0 upgrade <#arma> [veces]',
   desc: 'Mejora un arma +1% usando fragmentos. Cada mejora cuesta un poco más.',
   run: async (ctx, args) => {
     const u = ctx.u;
     const w = buscarArma(u, args[0]);
-    if (!w) return ctx.responder('📝 | Uso: `owo upgrade <#arma> [veces]`');
+    if (!w) return ctx.responder('📝 | Uso: `0w0 upgrade <#arma> [veces]`');
     const tope = RAREZAS_ARMA[w.rareza].rango[1] + 10;
     if (w.bono >= tope) return ctx.responder(`✨ | ${textoArma(w)} ya está al máximo (+${tope}%).`);
     const veces = leerCantidad(args[1] ?? '1', 999) || 1;
@@ -1315,7 +1350,7 @@ comando('upgrade', {
       w.bono++;
       subidas++;
     }
-    if (!subidas) return ctx.responder(`🚫 | Necesitas **${10 * (w.mejoras + 1)}** 🔩 fragmentos (tienes ${fmt(u.fragmentos)}). Consíguelos con \`owo weaponshard\`.`);
+    if (!subidas) return ctx.responder(`🚫 | Necesitas **${10 * (w.mejoras + 1)}** 🔩 fragmentos (tienes ${fmt(u.fragmentos)}). Consíguelos con \`0w0 weaponshard\`.`);
     return ctx.responder(`🔧 | **${ctx.nombre}** mejoró su arma ${subidas} vez${subidas > 1 ? 'es' : ''} por ${fmt(gastado)} 🔩\n${textoArma(w)}`);
   },
 });
@@ -1331,17 +1366,17 @@ function owoificar(texto) {
 }
 
 comando('owoify', {
-  alias: ['uwu', 'uwuify'], cat: 'social', uso: 'owo owoify <texto>',
+  alias: ['uwu', 'uwuify'], cat: 'social', uso: '0w0 owoify <texto>',
   desc: 'Convierte tu texto al dialecto OwO.',
   run: async (ctx, args) => {
     const texto = limpiarTexto(ctx, args.join(' ')).trim();
-    if (!texto) return ctx.responder('📝 | Uso: `owo owoify <texto>`');
+    if (!texto) return ctx.responder('📝 | Uso: `0w0 owoify <texto>`');
     return ctx.responder(owoificar(texto).slice(0, 2000));
   },
 });
 
 comando('profile', {
-  alias: ['perfil', 'p'], cat: 'social', uso: 'owo profile [@usuario]',
+  alias: ['perfil', 'p'], cat: 'social', uso: '0w0 profile [@usuario]',
   desc: 'Muestra tu tarjeta de jugador.',
   run: async (ctx, args) => {
     const [otro] = await mencionados(ctx, args);
@@ -1373,17 +1408,17 @@ comando('profile', {
 const propuestas = new Set();
 
 comando('marry', {
-  alias: ['casarse', 'casar'], cat: 'social', uso: 'owo marry @usuario',
-  desc: 'Pide matrimonio (necesitas un 💍 anillo de owo shop).',
+  alias: ['casarse', 'casar'], cat: 'social', uso: '0w0 marry @usuario',
+  desc: 'Pide matrimonio (necesitas un 💍 anillo de 0w0 shop).',
   run: async (ctx, args) => {
     const [otro] = await mencionados(ctx, args);
-    if (!otro) return ctx.responder('📝 | Uso: `owo marry @usuario`');
+    if (!otro) return ctx.responder('📝 | Uso: `0w0 marry @usuario`');
     if (otro.id === ctx.id) return ctx.responder('🤨 | No te puedes casar contigo mismo.');
     if (otro.user.bot) return ctx.responder('🤖 | Los bots no se casan.');
     const u = ctx.u, v = jugador(otro.id);
-    if (u.pareja) return ctx.responder(`💍 | **${ctx.nombre}**, ya estás casado/a con <@${u.pareja}>. Usa \`owo divorce\` primero.`);
+    if (u.pareja) return ctx.responder(`💍 | **${ctx.nombre}**, ya estás casado/a con <@${u.pareja}>. Usa \`0w0 divorce\` primero.`);
     if (v.pareja) return ctx.responder(`💍 | **${otro.nombre}** ya está casado/a.`);
-    if (!(u.inv.anillo > 0)) return ctx.responder(`💍 | **${ctx.nombre}**, necesitas un anillo. Cómpralo con \`owo buy anillo\` (${fmt(TIENDA.anillo.precio)} ${M}).`);
+    if (!(u.inv.anillo > 0)) return ctx.responder(`💍 | **${ctx.nombre}**, necesitas un anillo. Cómpralo con \`0w0 buy anillo\` (${fmt(TIENDA.anillo.precio)} ${M}).`);
     if (propuestas.has(ctx.id)) return ctx.responder('⏳ | Ya tienes una propuesta esperando respuesta.');
     propuestas.add(ctx.id);
 
@@ -1424,7 +1459,7 @@ comando('marry', {
 });
 
 comando('divorce', {
-  alias: ['divorcio', 'divorciarse'], cat: 'social', uso: 'owo divorce',
+  alias: ['divorcio', 'divorciarse'], cat: 'social', uso: '0w0 divorce',
   desc: 'Termina tu matrimonio.',
   run: async (ctx) => {
     const u = ctx.u;
@@ -1438,14 +1473,14 @@ comando('divorce', {
 });
 
 comando('ship', {
-  alias: ['amor', 'compatibilidad'], cat: 'social', uso: 'owo ship @usuario [@usuario2]',
+  alias: ['amor', 'compatibilidad'], cat: 'social', uso: '0w0 ship @usuario [@usuario2]',
   desc: 'Calcula qué tan compatibles son dos personas.',
   run: async (ctx, args) => {
     const m = await mencionados(ctx, args);
     let a, b;
     if (m.length >= 2) [a, b] = m;
     else if (m.length === 1) { a = { id: ctx.id, nombre: ctx.nombre }; b = m[0]; }
-    else return ctx.responder('📝 | Uso: `owo ship @usuario` o `owo ship @usuario1 @usuario2`');
+    else return ctx.responder('📝 | Uso: `0w0 ship @usuario` o `0w0 ship @usuario1 @usuario2`');
     const semilla = [a.id, b.id].sort().join(':');
     let h = 0;
     for (const ch of semilla) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -1484,23 +1519,23 @@ function rezarOMaldecir(tipo) {
 }
 
 comando('pray', {
-  alias: ['rezar', 'orar'], cat: 'social', uso: 'owo pray [@usuario]',
+  alias: ['rezar', 'orar'], cat: 'social', uso: '0w0 pray [@usuario]',
   desc: 'Reza por alguien (o por ti) y súbele la suerte al cazar. Cada 5 minutos.',
   run: rezarOMaldecir('pray'),
 });
 
 comando('curse', {
-  alias: ['maldecir', 'maldicion'], cat: 'social', uso: 'owo curse [@usuario]',
+  alias: ['maldecir', 'maldicion'], cat: 'social', uso: '0w0 curse [@usuario]',
   desc: 'Maldice a alguien y bájale la suerte. Comparte espera con pray.',
   run: rezarOMaldecir('curse'),
 });
 
 comando('cookie', {
-  alias: ['galleta', 'rep'], cat: 'social', uso: 'owo cookie @usuario',
+  alias: ['galleta', 'rep'], cat: 'social', uso: '0w0 cookie @usuario',
   desc: 'Regala una galleta (1 al día).',
   run: async (ctx, args) => {
     const [otro] = await mencionados(ctx, args);
-    if (!otro) return ctx.responder('📝 | Uso: `owo cookie @usuario`');
+    if (!otro) return ctx.responder('📝 | Uso: `0w0 cookie @usuario`');
     if (otro.id === ctx.id) return ctx.responder('🍪 | No te puedes regalar galletas a ti mismo... ¡compártelas!');
     if (otro.user.bot) return ctx.responder('🤖 | Los bots no comen galletas.');
     if (ctx.u.dia.galleta) return ctx.responder(`🍪 | **${ctx.nombre}**, ya regalaste tu galleta de hoy. Vuelve en **${tiempo(msHastaMedianoche())}**.`);
@@ -1534,7 +1569,7 @@ const ACCIONES = {
 
 for (const [tipo, a] of Object.entries(ACCIONES)) {
   comando(tipo, {
-    alias: a.alias, cat: 'social', uso: `owo ${tipo} @usuario`,
+    alias: a.alias, cat: 'social', uso: `0w0 ${tipo} @usuario`,
     desc: `${a.emoji} ${a.verbo[0].toUpperCase()}${a.verbo.slice(1)} alguien, con GIF de anime.`,
     run: async (ctx, args) => {
       if (enfriamiento(ctx, 'gif', 3)) return;
@@ -1569,19 +1604,19 @@ function enviarMeme(ctx, url, contenido) {
 }
 
 comando('drake', {
-  alias: ['drakeposting'], cat: 'memes', uso: 'owo drake <texto1> | <texto2>',
+  alias: ['drakeposting'], cat: 'memes', uso: '0w0 drake <texto1> | <texto2>',
   desc: 'Meme de Drake: rechaza lo primero y aprueba lo segundo.',
   run: async (ctx, args) => {
     if (enfriamiento(ctx, 'meme', 5)) return;
     const partes = limpiarTexto(ctx, args.join(' ')).split('|').map((s) => s.trim());
-    if (partes.length < 2 || !partes[0] || !partes[1]) return ctx.responder('📝 | Uso: `owo drake estudiar | jugar ARK`');
+    if (partes.length < 2 || !partes[0] || !partes[1]) return ctx.responder('📝 | Uso: `0w0 drake estudiar | jugar ARK`');
     return enviarMeme(ctx, urlMeme('drake', [partes[0], partes[1]]));
   },
 });
 
 comando('distractedbf', {
-  alias: ['dbf', 'novio', 'distracted'], cat: 'memes', uso: 'owo distractedbf @persona1 [@persona2]',
-  desc: 'Meme del novio distraído: tú volteas a ver a persona1 y persona2 es la novia. También: owo dbf texto1 | texto2 | texto3',
+  alias: ['dbf', 'novio', 'distracted'], cat: 'memes', uso: '0w0 distractedbf @persona1 [@persona2]',
+  desc: 'Meme del novio distraído: tú volteas a ver a persona1 y persona2 es la novia. También: 0w0 dbf texto1 | texto2 | texto3',
   run: async (ctx, args) => {
     if (enfriamiento(ctx, 'meme', 5)) return;
     const texto = limpiarTexto(ctx, args.join(' '));
@@ -1591,7 +1626,7 @@ comando('distractedbf', {
       lineas = [p[0] || '', p[1] || ctx.nombre, p[2] || ''];
     } else {
       const m = await mencionados(ctx, args);
-      if (!m.length) return ctx.responder('📝 | Uso: `owo distractedbf @persona1 @persona2` o `owo dbf nueva | yo | novia`');
+      if (!m.length) return ctx.responder('📝 | Uso: `0w0 distractedbf @persona1 @persona2` o `0w0 dbf nueva | yo | novia`');
       lineas = [m[0].nombre, ctx.nombre, m[1]?.nombre || ''];
     }
     return enviarMeme(ctx, urlMeme('db', lineas));
@@ -1599,12 +1634,12 @@ comando('distractedbf', {
 });
 
 comando('spongebobchicken', {
-  alias: ['sbc', 'spongebob', 'mock'], cat: 'memes', uso: 'owo spongebobchicken <texto>',
+  alias: ['sbc', 'spongebob', 'mock'], cat: 'memes', uso: '0w0 spongebobchicken <texto>',
   desc: 'Escribe tu texto alternando mayúsculas y minúsculas con el meme de Bob Esponja.',
   run: async (ctx, args) => {
     if (enfriamiento(ctx, 'meme', 5)) return;
     const texto = limpiarTexto(ctx, args.join(' ')).trim();
-    if (!texto) return ctx.responder('📝 | Uso: `owo spongebobchicken <texto>`');
+    if (!texto) return ctx.responder('📝 | Uso: `0w0 spongebobchicken <texto>`');
     let k = 0;
     const burla = [...texto].map((ch) => (/\p{L}/u.test(ch) ? (k++ % 2 ? ch.toUpperCase() : ch.toLowerCase()) : ch)).join('');
     return enviarMeme(ctx, urlMeme('spongebob', ['', burla]), burla.slice(0, 2000));
@@ -1613,15 +1648,15 @@ comando('spongebobchicken', {
 
 // ═══════════ AYUDA Y ADMIN ═══════════
 comando('help', {
-  alias: ['ayuda', 'comandos'], cat: null, uso: 'owo help [comando]',
+  alias: ['ayuda', 'comandos'], cat: null, uso: '0w0 help [comando]',
   desc: 'Muestra la lista de comandos.',
   run: async (ctx, args) => {
     if (args[0]) {
       const c = COMANDOS[ALIAS[norm(args[0])]];
-      if (!c || c.oculto) return ctx.responder('❓ | No conozco ese comando. Escribe `owo help` para ver todos.');
+      if (!c || c.oculto) return ctx.responder('❓ | No conozco ese comando. Escribe `0w0 help` para ver todos.');
       const embed = new EmbedBuilder()
         .setColor(COLOR)
-        .setTitle(`❔ owo ${c.nombre}`)
+        .setTitle(`❔ 0w0 ${c.nombre}`)
         .setDescription(c.desc)
         .addFields(
           { name: 'Cómo se usa', value: `\`${c.uso}\`` },
@@ -1632,7 +1667,7 @@ comando('help', {
     const embed = new EmbedBuilder()
       .setColor(COLOR)
       .setTitle('📚 Comandos del juego')
-      .setDescription(`Todos empiezan con \`${PREFIJO}\`. Ejemplo: \`owo hunt\`\nPara ver cómo se usa uno: \`owo help <comando>\``)
+      .setDescription(`Todos empiezan con \`${PREFIJO}\`. Ejemplo: \`0w0 hunt\`\nPara ver cómo se usa uno: \`0w0 help <comando>\``)
       .addFields(Object.entries(CATEGORIAS).map(([cat, titulo]) => ({
         name: titulo,
         value: Object.values(COMANDOS).filter((c) => c.cat === cat && !c.oculto).map((c) => `\`${c.nombre}\``).join(' '),
@@ -1642,13 +1677,13 @@ comando('help', {
 });
 
 comando('addcash', {
-  alias: [], cat: null, oculto: true, uso: 'owo addcash @usuario <cantidad>',
+  alias: [], cat: null, oculto: true, uso: '0w0 addcash @usuario <cantidad>',
   desc: 'Solo el dueño: da o quita cowoncy.',
   run: async (ctx, args) => {
     if (ctx.id !== OWNER_ID) return;
     const [otro] = await mencionados(ctx, args);
     const n = parseInt(args.find((a) => /^-?\d+$/.test(a)), 10);
-    if (!otro || !n) return ctx.responder('📝 | Uso: `owo addcash @usuario <cantidad>` (puede ser negativa)');
+    if (!otro || !n) return ctx.responder('📝 | Uso: `0w0 addcash @usuario <cantidad>` (puede ser negativa)');
     const v = jugador(otro.id);
     v.cash = Math.max(0, v.cash + n);
     return ctx.responder(`👑 | Listo. **${otro.nombre}** ahora tiene **${fmt(v.cash)}** ${M}`);
@@ -1671,7 +1706,7 @@ async function manejarMensaje(msg) {
   if (resto && !/^\s/.test(resto)) return; // "owoo" o "owos" no cuentan
   const args = resto.trim().split(/\s+/).filter(Boolean);
   if (!args.length) {
-    return msg.reply({ content: 'OwO 👀 Escribe `owo help` para ver los comandos.', allowedMentions: SIN_PINGS }).catch(() => {});
+    return msg.reply({ content: 'OwO 👀 Escribe `0w0 help` para ver los comandos.', allowedMentions: SIN_PINGS }).catch(() => {});
   }
   const nombre = ALIAS[norm(args.shift())];
   if (!nombre) return;
@@ -1680,7 +1715,7 @@ async function manejarMensaje(msg) {
   try {
     await COMANDOS[nombre].run(ctx, args);
   } catch (err) {
-    console.error(`❌ Error en owo ${nombre}:`, err);
+    console.error(`❌ Error en 0w0 ${nombre}:`, err);
     await ctx.responder('❌ | Ocurrió un error con ese comando. Intenta de nuevo.').catch(() => {});
   }
   if (ctx.avisos.length) {
@@ -1698,7 +1733,7 @@ function iniciarJuego(client, opciones = {}) {
   });
   client.once(Events.ClientReady, () => {
     setInterval(() => revisarLoteria(client).catch(() => {}), 60 * 1000);
-    console.log(`🎮 Juego owo listo (${Object.keys(COMANDOS).length} comandos, prefijo "${PREFIJO}")`);
+    console.log(`🎮 Juego 0w0 listo (${Object.keys(COMANDOS).length} comandos, prefijo "${PREFIJO}")`);
   });
 }
 
