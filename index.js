@@ -1,21 +1,4 @@
-// index.js — Bot SHOP GALÁCTICO (ARK Survival Evolved)
-// Comandos (solo el dueño puede usarlos):
-//   /pve  /pvp  /2b        → anuncio de COMPRA (con precios y botón Comprar)
-//   /rw pve | pvp | 2b     → anuncio de REWARD (sin precios y botón Reclamar token)
-//   /say texto             → el bot escribe tu texto tal cual
-//   /anuncio texto         → el bot publica tu texto como anuncio
-//   (en /say y /anuncio escribe \n donde quieras un salto de línea)
-//
-// Requiere: discord.js v14  →  npm install discord.js
-// Variables de entorno (en Railway → Variables):
-//   TOKEN               Token del bot (OBLIGATORIO)
-//   OWNER_ID            Tu ID de Discord: el único que puede usar los comandos
-//   STAFF_ROLE_ID       Rol que atiende los tickets (opcional)
-//   TICKET_CATEGORY_ID  Categoría donde se crean los tickets (opcional)
-//   VIP_ROLE_ID         Rol VIP (si no lo pones, usa el de tu anuncio)
-
-try { require('dotenv').config(); } catch {} // solo si usas .env en tu compu
-
+try { require('dotenv').config(); } catch {}
 const {
   Client, GatewayIntentBits, Events, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ChannelType,
@@ -32,8 +15,6 @@ if (!TOKEN) {
 }
 
 // ─────────────── PRODUCTOS DE LA SHOP ───────────────
-// Para agregar otro token, copia uno de estos bloques y cámbiale la clave.
-// La clave (pve, pvp, 2b...) es el nombre del comando: /pve, /rw pve...
 const PRODUCTOS = {
   pve: {
     nombre: 'PvE',
@@ -58,7 +39,6 @@ const PRODUCTOS = {
     },
     nota: 'Si lo quieres sacar desde mi **server privado**, se cobra **+1 USD extra** por la transferencia.',
   },
-
   pvp: {
     nombre: 'PvP',
     titulo: '🔥 CONTENIDO TOKEN PvP 🔥',
@@ -82,7 +62,6 @@ const PRODUCTOS = {
     },
     nota: null,
   },
-
   '2b': {
     nombre: '2B',
     titulo: '🖤 CONTENIDO TOKEN 2B 🖤',
@@ -118,20 +97,18 @@ const METODOS = {
 };
 
 const COLOR_ANUNCIO = 0x7b2cbf;
-const conSaltos = (t) => t.replace(/\\n/g, '\n'); // "\n" escrito → salto de línea real
+const conSaltos = (t) => t.replace(/\\n/g, '\n');
 
 // ─────────────── EMBEDS Y COMPONENTES ───────────────
 const listaIncluye = (prod) =>
   '### 📦 ¿Qué incluye?\n' + prod.incluye.map((i) => `🔹 ${i}`).join('\n');
 
-// Anuncio de COMPRA (con precios)
 function embedCompra(clave) {
   const prod = PRODUCTOS[clave];
   const lista = (tipo) =>
     Object.entries(prod.precios)
       .map(([m, p]) => `➜ ${METODOS[m].emoji} **${METODOS[m].label}:** ${p[tipo]}`)
       .join('\n');
-
   const embed = new EmbedBuilder()
     .setColor(prod.color)
     .setTitle(prod.titulo)
@@ -141,12 +118,10 @@ function embedCompra(clave) {
       { name: '👑 Precio VIP', value: `<@&${VIP_ROLE_ID}>\n${lista('vip')}` },
     )
     .setFooter({ text: 'Pulsa 🛒 Comprar para abrir un ticket' });
-
   if (prod.nota) embed.addFields({ name: '⚠️ Importante', value: prod.nota });
   return embed;
 }
 
-// Anuncio de REWARD (sin precios)
 function embedReward(clave) {
   const prod = PRODUCTOS[clave];
   return new EmbedBuilder()
@@ -192,11 +167,9 @@ const filaCerrar = () =>
   );
 
 // ─────────────── TICKETS ───────────────
-// tipo: 'compra' o 'rw'  →  canal "compra-pvp-usuario" / "rw-pvp-usuario"
 async function crearTicket(interaction, { tipo, clave, campos }) {
   const { guild, user } = interaction;
   const prod = PRODUCTOS[clave];
-
   const existente = guild.channels.cache.find((ch) => ch.topic?.startsWith(`ticket:${user.id}`));
   if (existente) return { existente };
 
@@ -204,6 +177,7 @@ async function crearTicket(interaction, { tipo, clave, campos }) {
     PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
     PermissionFlagsBits.AttachFiles, PermissionFlagsBits.ReadMessageHistory,
   ];
+
   const permisos = [
     { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
     { id: user.id, allow: permisosLectura },
@@ -218,8 +192,9 @@ async function crearTicket(interaction, { tipo, clave, campos }) {
   ];
   if (STAFF_ROLE_ID) permisos.push({ id: STAFF_ROLE_ID, allow: permisosLectura });
 
-  const etiqueta = `${tipo.toUpperCase()}-${clave.toUpperCase()}`; // COMPRA-PVP / RW-PVP
+  const etiqueta = `${tipo.toUpperCase()}-${clave.toUpperCase()}`;
   const nombreUsuario = user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 20) || user.id;
+
   const canal = await guild.channels.create({
     name: `${etiqueta.toLowerCase()}-${nombreUsuario}`,
     type: ChannelType.GuildText,
@@ -248,10 +223,139 @@ async function crearTicket(interaction, { tipo, clave, campos }) {
   return { canal };
 }
 
-// ─────────────── CLIENTE Y COMANDOS ───────────────
-const client = new Client({ intents: [GatewayIntentBits.Guilds] });
+// ─────────────── ESTRUCTURA DEL SERVIDOR — /setup ───────────────
+const ESTRUCTURA = [
+  {
+    nombre: '━━━━━━━━ 「 𝗜𝗡𝗙𝗢 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '📢｜Anuncios', descripcion: 'Avisos importantes del servidor' },
+      { nombre: '📝｜Reglas', descripcion: 'Normas que debes cumplir' },
+      { nombre: '😱｜Ofertas', descripcion: 'Promociones y descuentos activos' },
+      { nombre: '⚡｜Vip', descripcion: 'Beneficios exclusivos de miembros VIP' },
+      { nombre: '💰｜Métodos-De-Pago', descripcion: 'Formas de pago aceptadas' },
+      { nombre: '😱｜TABLA-ADM', descripcion: 'Información del equipo administrativo' },
+      { nombre: '🌹｜Bienvenida', descripcion: 'Saludo a los nuevos miembros' },
+      { nombre: '🥀｜Despedida', descripcion: 'Despedidas de miembros' },
+      { nombre: '🌶️｜Baneados', descripcion: 'Lista de expulsados del servidor' },
+    ]
+  },
+  {
+    nombre: '━━━━━━━━ 「 𝗖𝗢𝗠𝗨𝗡𝗜𝗗𝗔𝗗 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '💥｜Chatear', descripcion: 'Charla general con la comunidad' },
+      { nombre: '🤖｜Comandos', descripcion: 'Comandos disponibles del bot' },
+      { nombre: '🗣️｜Sugerencias', descripcion: 'Da tus ideas para mejorar' },
+    ]
+  },
+  {
+    nombre: '━━━━━━━━ 「 𝗦𝗨𝗣𝗢𝗥𝗧𝗘 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '🏷️｜Ticket', descripcion: 'Abre un ticket para ayuda o compras' },
+      { nombre: '📜｜Logs-Ticket', descripcion: 'Historial de tickets cerrados' },
+    ]
+  },
+  {
+    nombre: '━━━━━━━━ 「 𝗘𝗩𝗘𝗡𝗧𝗢𝗦 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '🎉｜Giveaway', descripcion: 'Participa en sorteos y regalos' },
+      { nombre: '🔮｜Rw-Boost', descripcion: 'Recompensas por Boost del servidor' },
+      { nombre: '🎀｜Rw-Invites', descripcion: 'Recompensas por invitar gente' },
+    ]
+  },
+  {
+    nombre: '━━━━━━━━ 「 𝗦𝗛𝗢𝗣 𝗚𝗔𝗟𝗔𝗖𝗧𝗜𝗖𝗢 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '🧊｜Proff-Ventas', descripcion: 'Ventas y atención comercial' },
+      { nombre: '🧊｜Proff-Sorteos', descripcion: 'Sorteos oficiales de la tienda' },
+      { nombre: '🧊｜Proff-Invites', descripcion: 'Recompensas por invitaciones' },
+      { nombre: '🧊｜Proff-Boost', descripcion: 'Beneficios por boost' },
+      { nombre: '🧊｜Proff-Tradeos', descripcion: 'Intercambios autorizados' },
+    ]
+  },
+  {
+    nombre: '━━━━━━━━ 「 𝗧𝗢𝗞𝗘𝗡𝗦 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '🃏｜Plantilla', descripcion: 'Plantillas de contenido' },
+      { nombre: '🤝｜Partners', descripcion: 'Servidores aliados' },
+      { nombre: '🍀｜Token-500M', descripcion: 'Contenido de token 500M' },
+      { nombre: '🍀｜Token-1B', descripcion: 'Contenido de token 1B' },
+      { nombre: '🍀｜Token-2B', descripcion: 'Contenido de token 2B' },
+      { nombre: '🍀｜Token-PvP', descripcion: 'Contenido para PvP' },
+      { nombre: '🍀｜Token-Crianza', descripcion: 'Contenido de cría y dinos' },
+      { nombre: '🍀｜Token-Rewards', descripcion: 'Recompensas y bonificaciones' },
+      { nombre: '🍀｜Token-Personal', descripcion: 'Contenido personalizado' },
+    ]
+  },
+  {
+    nombre: '━━━━━━━━ 「 𝗦𝗧𝗔𝗙𝗙 」 ━━━━━━━━━━',
+    canales: [
+      { nombre: '🔒｜Admin-Chat', descripcion: 'Comunicación exclusiva del equipo administrativo', privado: true },
+    ]
+  }
+];
 
-const soloAdmins = PermissionFlagsBits.Administrator;
+async function ejecutarSetup(guild) {
+  console.log(`🔨 Iniciando configuración en: ${guild.name}`);
+
+  // 1️⃣ BORRAR TODO: canales y categorías
+  const todosCanales = await guild.channels.fetch();
+  for (const [id, canal] of todosCanales) {
+    if (canal.type === ChannelType.GuildText || canal.type === ChannelType.GuildCategory || canal.type === ChannelType.GuildVoice) {
+      await canal.delete().catch(err => console.log(`⚠️ No se pudo borrar ${canal.name}: ${err.message}`));
+      await new Promise(res => setTimeout(res, 300)); // Evitar límite de la API
+    }
+  }
+
+  // 2️⃣ CREAR ESTRUCTURA DESDE CERO
+  for (const cat of ESTRUCTURA) {
+    const categoria = await guild.channels.create({
+      name: cat.nombre,
+      type: ChannelType.GuildCategory,
+      position: 0,
+    });
+
+    for (const ch of cat.canales) {
+      const permisos = ch.privado ? [
+        { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+        { id: OWNER_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] },
+        ...(STAFF_ROLE_ID ? [{ id: STAFF_ROLE_ID, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory] }] : []),
+      ] : [];
+
+      const canalCreado = await guild.channels.create({
+        name: ch.nombre,
+        type: ChannelType.GuildText,
+        parent: categoria.id,
+        topic: ch.descripcion,
+        permissionOverwrites: permisos,
+      });
+
+      // Mensaje de bienvenida en el canal
+      await canalCreado.send({
+        embeds: [new EmbedBuilder()
+          .setColor(COLOR_ANUNCIO)
+          .setTitle(`📌 ${ch.nombre.replace(/^[^\s]+\s/, '')}`)
+          .setDescription(ch.descripcion)
+          .setTimestamp()
+        ]
+      }).catch(() => {});
+
+      await new Promise(res => setTimeout(res, 200)); // Evitar límite de la API
+    }
+  }
+
+  console.log(`✅ Estructura creada completamente en: ${guild.name}`);
+  return true;
+}
+
+// ─────────────── CLIENTE Y COMANDOS ───────────────
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+  ]
+});
+
+const soloDueno = PermissionFlagsBits.Administrator;
 
 const comandos = [
   // /pve, /pvp, /2b
@@ -259,15 +363,14 @@ const comandos = [
     new SlashCommandBuilder()
       .setName(clave)
       .setDescription(`Publica la shop del token ${clave.toUpperCase()} (compra)`)
-      .setDefaultMemberPermissions(soloAdmins),
+      .setDefaultMemberPermissions(soloDueno),
   ),
-
-  // /rw pve, /rw pvp, /rw 2b
+  // /rw
   (() => {
     const rw = new SlashCommandBuilder()
       .setName('rw')
       .setDescription('Publica un token de reward (sin precios)')
-      .setDefaultMemberPermissions(soloAdmins);
+      .setDefaultMemberPermissions(soloDueno);
     for (const clave of Object.keys(PRODUCTOS)) {
       rw.addSubcommand((sub) =>
         sub.setName(clave).setDescription(`Reward del token ${clave.toUpperCase()}`),
@@ -275,20 +378,20 @@ const comandos = [
     }
     return rw;
   })(),
-
+  // /say
   new SlashCommandBuilder()
     .setName('say')
     .setDescription('El bot escribe tu texto en este canal')
-    .setDefaultMemberPermissions(soloAdmins)
+    .setDefaultMemberPermissions(soloDueno)
     .addStringOption((o) =>
       o.setName('texto').setDescription('Lo que va a escribir el bot (usa \\n para saltos de línea)')
         .setRequired(true).setMaxLength(2000),
     ),
-
+  // /anuncio
   new SlashCommandBuilder()
     .setName('anuncio')
     .setDescription('El bot publica tu texto como anuncio en este canal')
-    .setDefaultMemberPermissions(soloAdmins)
+    .setDefaultMemberPermissions(soloDueno)
     .addStringOption((o) =>
       o.setName('texto').setDescription('El texto del anuncio (usa \\n para saltos de línea)')
         .setRequired(true).setMaxLength(4000),
@@ -301,9 +404,18 @@ const comandos = [
           { name: '@everyone y @here', value: '@everyone @here' },
         ),
     ),
+  // ✅ NUEVO: /setup
+  new SlashCommandBuilder()
+    .setName('setup')
+    .setDescription('⚠️ BORRA TODO y crea la estructura del servidor desde cero')
+    .setDefaultMemberPermissions(soloDueno)
+    .addBooleanOption(o =>
+      o.setName('confirmar')
+        .setDescription('CONFIRMA que quieres BORRAR todos los canales y categorías')
+        .setRequired(true)
+    ),
 ].map((c) => c.toJSON());
 
-// Registra los comandos en cada servidor donde está el bot (aparecen al instante)
 async function registrarComandos(guild) {
   try {
     await guild.commands.set(comandos);
@@ -323,20 +435,41 @@ client.on(Events.GuildCreate, registrarComandos);
 // ─────────────── INTERACCIONES ───────────────
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // ── Comandos (solo el dueño) ──
+    // ── /setup ──
+    if (interaction.isChatInputCommand() && interaction.commandName === 'setup') {
+      if (interaction.user.id !== OWNER_ID) {
+        return interaction.reply({ content: '❌ SOLO el dueño absoluto puede usar /setup.', flags: MessageFlags.Ephemeral });
+      }
+      const confirmar = interaction.options.getBoolean('confirmar');
+      if (!confirmar) {
+        return interaction.reply({ content: '❌ Debes marcar "confirmar" como verdadero para proceder.', flags: MessageFlags.Ephemeral });
+      }
+
+      await interaction.reply({
+        content: '⚠️ **ATENCIÓN:** Se van a BORRAR TODOS los canales y categorías y se creará la estructura nueva.\nEsto puede tardar unos segundos...',
+        flags: MessageFlags.Ephemeral
+      });
+
+      await ejecutarSetup(interaction.guild);
+
+      return interaction.editReply({
+        content: '✅ **ESTRUCTURA CREADA COMPLETAMENTE.** Revisa tu servidor, todo está listo con el formato de las fotos + `Admin-Chat` privado para el staff.'
+      });
+    }
+
+    // ── Resto de comandos ──
     if (interaction.isChatInputCommand()) {
       if (interaction.user.id !== OWNER_ID) {
         return interaction.reply({ content: '❌ Solo el dueño de la shop puede usar este comando.', flags: MessageFlags.Ephemeral });
       }
+
       const cmd = interaction.commandName;
 
-      // /pve, /pvp, /2b → anuncio de compra
       if (PRODUCTOS[cmd]) {
         await interaction.channel.send({ embeds: [embedCompra(cmd)], components: [filaComprar(cmd)] });
         return interaction.reply({ content: `✅ Shop ${cmd.toUpperCase()} publicada.`, flags: MessageFlags.Ephemeral });
       }
 
-      // /rw pve, /rw pvp, /rw 2b → anuncio de reward
       if (cmd === 'rw') {
         const clave = interaction.options.getSubcommand();
         if (!PRODUCTOS[clave]) {
@@ -346,14 +479,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
         return interaction.reply({ content: `✅ Reward ${clave.toUpperCase()} publicado.`, flags: MessageFlags.Ephemeral });
       }
 
-      // /say texto → el bot lo escribe y no queda rastro de tu comando
       if (cmd === 'say') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         await interaction.channel.send({ content: conSaltos(interaction.options.getString('texto')) });
         return interaction.deleteReply();
       }
 
-      // /anuncio texto [mencion] → anuncio en embed
       if (cmd === 'anuncio') {
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
         const mencion = interaction.options.getString('mencion');
@@ -367,8 +498,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
     }
 
-    // ── Botón Comprar → elegir método de pago ──
-    // ('shop_comprar' es el botón de los anuncios viejos de /shop; cuenta como PvE)
+    // Botones y menús
     if (interaction.isButton() && (interaction.customId.startsWith('comprar:') || interaction.customId === 'shop_comprar')) {
       const clave = interaction.customId === 'shop_comprar' ? 'pve' : interaction.customId.split(':')[1];
       if (!PRODUCTOS[clave]) {
@@ -381,7 +511,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
 
-    // ── Método elegido → ticket COMPRA-<TOKEN> ──
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('pago:')) {
       const clave = interaction.customId.split(':')[1];
       const prod = PRODUCTOS[clave];
@@ -393,7 +522,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
       await interaction.deferUpdate();
       const esVip = interaction.member.roles.cache.has(VIP_ROLE_ID);
-
       const r = await crearTicket(interaction, {
         tipo: 'compra',
         clave,
@@ -410,14 +538,12 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
 
-    // ── Botón Reclamar token → ticket RW-<TOKEN> ──
     if (interaction.isButton() && interaction.customId.startsWith('reclamar:')) {
       const clave = interaction.customId.split(':')[1];
       if (!PRODUCTOS[clave]) {
         return interaction.reply({ content: '❌ Este reward ya no está disponible.', flags: MessageFlags.Ephemeral });
       }
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
       const r = await crearTicket(interaction, {
         tipo: 'rw',
         clave,
@@ -431,21 +557,19 @@ client.on(Events.InteractionCreate, async (interaction) => {
       );
     }
 
-    // ── Cerrar ticket (quien lo abrió, dueño, staff o admin) ──
     if (interaction.isButton() && interaction.customId === 'ticket_cerrar') {
       const esQuienLoAbrio = interaction.channel.topic?.startsWith(`ticket:${interaction.user.id}`);
       const esStaff =
         interaction.user.id === OWNER_ID ||
         (STAFF_ROLE_ID && interaction.member.roles.cache.has(STAFF_ROLE_ID)) ||
         interaction.memberPermissions.has(PermissionFlagsBits.Administrator);
-
       if (!esQuienLoAbrio && !esStaff) {
         return interaction.reply({ content: '❌ No puedes cerrar este ticket.', flags: MessageFlags.Ephemeral });
       }
-
       await interaction.reply('🔒 El ticket se cerrará en 5 segundos...');
       setTimeout(() => interaction.channel.delete().catch(() => {}), 5000);
     }
+
   } catch (err) {
     console.error('❌ Error en interacción:', err);
     const msg = { content: '❌ Ocurrió un error. Avísale al staff.', flags: MessageFlags.Ephemeral };
