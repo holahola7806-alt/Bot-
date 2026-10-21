@@ -9,6 +9,8 @@
 //   /agregar invites cantidad persona → suma (o resta con negativo) invites a alguien
 // Comandos para TODOS:
 //   /invites [usuario]     → cuántas personas ha invitado y quiénes son
+//   owo ...                → juego tipo OwO (está en owo.js). Escribe "owo help" en Discord.
+//                            Necesita "Message Content Intent" activado en el Developer Portal.
 //
 // Para contar invites solo, en el Developer Portal (Bot → Privileged Gateway Intents)
 // activa "Server Members Intent", y dale al bot el permiso "Gestionar servidor".
@@ -26,6 +28,7 @@ try { require('dotenv').config(); } catch {} // solo si usas .env en tu compu
 
 const fs = require('fs');
 const path = require('path');
+const juegoOwo = require('./owo');
 const {
   Client, GatewayIntentBits, Partials, Events, EmbedBuilder, ActionRowBuilder,
   ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, ChannelType,
@@ -350,8 +353,13 @@ function guardarInvitesYa() {
   }
 }
 
+// Al apagarse (Railway reinicia el bot), guarda invites y juego antes de salir
 for (const senal of ['SIGTERM', 'SIGINT']) {
-  process.once(senal, () => { guardarInvitesYa(); process.exit(0); });
+  process.once(senal, () => {
+    guardarInvitesYa();
+    juegoOwo.guardarDatos();
+    process.exit(0);
+  });
 }
 
 const datosServidor = (guildId) => (datosInvites[guildId] ||= { usuarios: {}, invitados: {} });
@@ -714,10 +722,15 @@ async function manejarInteraccion(interaction) {
 }
 
 // ─────────────── ARRANQUE ───────────────
-function crearCliente(conMiembros) {
+// miembros → contar invites solas (Server Members Intent)
+// juego    → juego owo, que lee mensajes (Message Content Intent)
+function crearCliente({ miembros, juego }) {
+  const conMiembros = miembros;
   const intents = [GatewayIntentBits.Guilds, GatewayIntentBits.GuildInvites];
-  if (conMiembros) intents.push(GatewayIntentBits.GuildMembers);
+  if (miembros) intents.push(GatewayIntentBits.GuildMembers);
+  if (juego) intents.push(GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent);
   const client = new Client({ intents, partials: [Partials.GuildMember] });
+  if (juego) juegoOwo.iniciarJuego(client, { ownerId: OWNER_ID });
 
   client.once(Events.ClientReady, async (listo) => {
     console.log(`✅ Conectado como ${listo.user.tag}`);
@@ -751,19 +764,31 @@ function crearCliente(conMiembros) {
   return client;
 }
 
+const esErrorDeIntents = (err) =>
+  /disallowed intents|privileged intent/i.test(String(err?.message || err)) || err?.code === 4014;
+
+// Si falta activar algún permiso en el Developer Portal, el bot igual prende
+// (la shop siempre funciona) y avisa en los logs qué parte quedó apagada.
 async function arrancar() {
   cargarInvites();
-  let client = crearCliente(true);
-  try {
-    await client.login(TOKEN);
-  } catch (err) {
-    const texto = String(err?.message || err);
-    if (!/disallowed intents|privileged intent/i.test(texto) && err?.code !== 4014) throw err;
-    console.warn('⚠️ Discord no dejó usar "Server Members Intent". Arranco sin contar invites solas.');
-    await client.destroy();
-    client = crearCliente(false);
-    await client.login(TOKEN);
+  const intentos = [
+    { miembros: true,  juego: true },
+    { miembros: true,  juego: false },
+    { miembros: false, juego: true },
+    { miembros: false, juego: false },
+  ];
+  for (const opcion of intentos) {
+    const client = crearCliente(opcion);
+    try {
+      await client.login(TOKEN);
+      if (!opcion.juego) console.warn('⚠️ El juego owo está APAGADO: activa "Message Content Intent" en el Developer Portal y reinicia el bot.');
+      return;
+    } catch (err) {
+      if (!esErrorDeIntents(err)) throw err;
+      await client.destroy();
+    }
   }
+  throw new Error('Discord rechazó todas las combinaciones de intents.');
 }
 
 arrancar().catch((err) => {
