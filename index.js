@@ -1,5 +1,11 @@
 // index.js — Bot SHOP GALÁCTICO (ARK Survival Evolved)
-// Comandos: /pve, /pvp y /2b (solo el dueño puede usarlos)
+// Comandos (solo el dueño puede usarlos):
+//   /pve  /pvp  /2b        → anuncio de COMPRA (con precios y botón Comprar)
+//   /rw pve | pvp | 2b     → anuncio de REWARD (sin precios y botón Reclamar token)
+//   /say texto             → el bot escribe tu texto tal cual
+//   /anuncio texto         → el bot publica tu texto como anuncio
+//   (en /say y /anuncio escribe \n donde quieras un salto de línea)
+//
 // Requiere: discord.js v14  →  npm install discord.js
 // Variables de entorno (en Railway → Variables):
 //   TOKEN               Token del bot (OBLIGATORIO)
@@ -27,9 +33,10 @@ if (!TOKEN) {
 
 // ─────────────── PRODUCTOS DE LA SHOP ───────────────
 // Para agregar otro token, copia uno de estos bloques y cámbiale la clave.
-// La clave (pve, pvp...) es el nombre del comando: /pve, /pvp...
+// La clave (pve, pvp, 2b...) es el nombre del comando: /pve, /rw pve...
 const PRODUCTOS = {
   pve: {
+    nombre: 'PvE',
     titulo: '🌌 TOKEN — SHOP GALÁCTICO PvE 🌌',
     color: 0x7b2cbf,
     incluye: [
@@ -53,6 +60,7 @@ const PRODUCTOS = {
   },
 
   pvp: {
+    nombre: 'PvP',
     titulo: '🔥 CONTENIDO TOKEN PvP 🔥',
     color: 0xff4fa3,
     incluye: [
@@ -76,6 +84,7 @@ const PRODUCTOS = {
   },
 
   '2b': {
+    nombre: '2B',
     titulo: '🖤 CONTENIDO TOKEN 2B 🖤',
     color: 0x555555,
     incluye: [
@@ -108,8 +117,15 @@ const METODOS = {
   diamantes: { label: 'Diamantes', emoji: '💎' },
 };
 
+const COLOR_ANUNCIO = 0x7b2cbf;
+const conSaltos = (t) => t.replace(/\\n/g, '\n'); // "\n" escrito → salto de línea real
+
 // ─────────────── EMBEDS Y COMPONENTES ───────────────
-function embedShop(clave) {
+const listaIncluye = (prod) =>
+  '### 📦 ¿Qué incluye?\n' + prod.incluye.map((i) => `🔹 ${i}`).join('\n');
+
+// Anuncio de COMPRA (con precios)
+function embedCompra(clave) {
   const prod = PRODUCTOS[clave];
   const lista = (tipo) =>
     Object.entries(prod.precios)
@@ -119,7 +135,7 @@ function embedShop(clave) {
   const embed = new EmbedBuilder()
     .setColor(prod.color)
     .setTitle(prod.titulo)
-    .setDescription('### 📦 ¿Qué incluye?\n' + prod.incluye.map((i) => `🔹 ${i}`).join('\n'))
+    .setDescription(listaIncluye(prod))
     .addFields(
       { name: '💰 Precio', value: lista('normal') },
       { name: '👑 Precio VIP', value: `<@&${VIP_ROLE_ID}>\n${lista('vip')}` },
@@ -130,6 +146,16 @@ function embedShop(clave) {
   return embed;
 }
 
+// Anuncio de REWARD (sin precios)
+function embedReward(clave) {
+  const prod = PRODUCTOS[clave];
+  return new EmbedBuilder()
+    .setColor(prod.color)
+    .setTitle(`🎁 REWARD — TOKEN ${prod.nombre} 🎁`)
+    .setDescription(listaIncluye(prod))
+    .setFooter({ text: 'Pulsa 🎁 Reclamar token para abrir un ticket' });
+}
+
 const filaComprar = (clave) =>
   new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -137,6 +163,15 @@ const filaComprar = (clave) =>
       .setLabel(`Comprar ${clave.toUpperCase()}`)
       .setEmoji('🛒')
       .setStyle(ButtonStyle.Success),
+  );
+
+const filaReclamar = (clave) =>
+  new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`reclamar:${clave}`)
+      .setLabel('Reclamar token')
+      .setEmoji('🎁')
+      .setStyle(ButtonStyle.Primary),
   );
 
 const filaPago = (clave) =>
@@ -156,22 +191,123 @@ const filaCerrar = () =>
     new ButtonBuilder().setCustomId('ticket_cerrar').setLabel('Cerrar ticket').setEmoji('🔒').setStyle(ButtonStyle.Danger),
   );
 
+// ─────────────── TICKETS ───────────────
+// tipo: 'compra' o 'rw'  →  canal "compra-pvp-usuario" / "rw-pvp-usuario"
+async function crearTicket(interaction, { tipo, clave, campos }) {
+  const { guild, user } = interaction;
+  const prod = PRODUCTOS[clave];
+
+  const existente = guild.channels.cache.find((ch) => ch.topic?.startsWith(`ticket:${user.id}`));
+  if (existente) return { existente };
+
+  const permisosLectura = [
+    PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
+    PermissionFlagsBits.AttachFiles, PermissionFlagsBits.ReadMessageHistory,
+  ];
+  const permisos = [
+    { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
+    { id: user.id, allow: permisosLectura },
+    { id: OWNER_ID, allow: permisosLectura },
+    {
+      id: client.user.id,
+      allow: [
+        PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
+        PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory,
+      ],
+    },
+  ];
+  if (STAFF_ROLE_ID) permisos.push({ id: STAFF_ROLE_ID, allow: permisosLectura });
+
+  const etiqueta = `${tipo.toUpperCase()}-${clave.toUpperCase()}`; // COMPRA-PVP / RW-PVP
+  const nombreUsuario = user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 20) || user.id;
+  const canal = await guild.channels.create({
+    name: `${etiqueta.toLowerCase()}-${nombreUsuario}`,
+    type: ChannelType.GuildText,
+    topic: `ticket:${user.id}:${etiqueta}`,
+    parent: TICKET_CATEGORY_ID || null,
+    permissionOverwrites: permisos,
+  });
+
+  const embed = new EmbedBuilder()
+    .setColor(prod.color)
+    .setTitle(tipo === 'rw' ? `🎁 ${etiqueta}` : `🛒 ${etiqueta}`)
+    .addFields(campos)
+    .setFooter({
+      text: tipo === 'rw'
+        ? 'Espera a que el staff te entregue tu token.'
+        : 'Espera a que el staff te atienda. Manda aquí tu comprobante de pago.',
+    });
+  if (tipo === 'compra' && prod.nota) embed.addFields({ name: '⚠️ Importante', value: prod.nota });
+
+  await canal.send({
+    content: `${user} <@${OWNER_ID}>${STAFF_ROLE_ID ? ` <@&${STAFF_ROLE_ID}>` : ''}`,
+    embeds: [embed],
+    components: [filaCerrar()],
+  });
+
+  return { canal };
+}
+
 // ─────────────── CLIENTE Y COMANDOS ───────────────
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-const comandos = Object.entries(PRODUCTOS).map(([clave, prod]) =>
+const soloAdmins = PermissionFlagsBits.Administrator;
+
+const comandos = [
+  // /pve, /pvp, /2b
+  ...Object.keys(PRODUCTOS).map((clave) =>
+    new SlashCommandBuilder()
+      .setName(clave)
+      .setDescription(`Publica la shop del token ${clave.toUpperCase()} (compra)`)
+      .setDefaultMemberPermissions(soloAdmins),
+  ),
+
+  // /rw pve, /rw pvp, /rw 2b
+  (() => {
+    const rw = new SlashCommandBuilder()
+      .setName('rw')
+      .setDescription('Publica un token de reward (sin precios)')
+      .setDefaultMemberPermissions(soloAdmins);
+    for (const clave of Object.keys(PRODUCTOS)) {
+      rw.addSubcommand((sub) =>
+        sub.setName(clave).setDescription(`Reward del token ${clave.toUpperCase()}`),
+      );
+    }
+    return rw;
+  })(),
+
   new SlashCommandBuilder()
-    .setName(clave)
-    .setDescription(`Publica la shop del token ${clave.toUpperCase()} en este canal`)
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-    .toJSON(),
-);
+    .setName('say')
+    .setDescription('El bot escribe tu texto en este canal')
+    .setDefaultMemberPermissions(soloAdmins)
+    .addStringOption((o) =>
+      o.setName('texto').setDescription('Lo que va a escribir el bot (usa \\n para saltos de línea)')
+        .setRequired(true).setMaxLength(2000),
+    ),
+
+  new SlashCommandBuilder()
+    .setName('anuncio')
+    .setDescription('El bot publica tu texto como anuncio en este canal')
+    .setDefaultMemberPermissions(soloAdmins)
+    .addStringOption((o) =>
+      o.setName('texto').setDescription('El texto del anuncio (usa \\n para saltos de línea)')
+        .setRequired(true).setMaxLength(4000),
+    )
+    .addStringOption((o) =>
+      o.setName('mencion').setDescription('¿A quién mencionar? (opcional)')
+        .addChoices(
+          { name: '@everyone', value: '@everyone' },
+          { name: '@here', value: '@here' },
+          { name: '@everyone y @here', value: '@everyone @here' },
+        ),
+    ),
+].map((c) => c.toJSON());
 
 // Registra los comandos en cada servidor donde está el bot (aparecen al instante)
 async function registrarComandos(guild) {
   try {
     await guild.commands.set(comandos);
-    console.log(`✅ Comandos /${Object.keys(PRODUCTOS).join(', /')} registrados en ${guild.name}`);
+    console.log(`✅ Comandos registrados en ${guild.name}`);
   } catch (err) {
     console.error(`❌ Error registrando comandos en ${guild.name}:`, err);
   }
@@ -187,17 +323,51 @@ client.on(Events.GuildCreate, registrarComandos);
 // ─────────────── INTERACCIONES ───────────────
 client.on(Events.InteractionCreate, async (interaction) => {
   try {
-    // /pve, /pvp, /2b → publica el anuncio
-    if (interaction.isChatInputCommand() && PRODUCTOS[interaction.commandName]) {
+    // ── Comandos (solo el dueño) ──
+    if (interaction.isChatInputCommand()) {
       if (interaction.user.id !== OWNER_ID) {
         return interaction.reply({ content: '❌ Solo el dueño de la shop puede usar este comando.', flags: MessageFlags.Ephemeral });
       }
-      const clave = interaction.commandName;
-      await interaction.channel.send({ embeds: [embedShop(clave)], components: [filaComprar(clave)] });
-      return interaction.reply({ content: `✅ Shop ${clave.toUpperCase()} publicada.`, flags: MessageFlags.Ephemeral });
+      const cmd = interaction.commandName;
+
+      // /pve, /pvp, /2b → anuncio de compra
+      if (PRODUCTOS[cmd]) {
+        await interaction.channel.send({ embeds: [embedCompra(cmd)], components: [filaComprar(cmd)] });
+        return interaction.reply({ content: `✅ Shop ${cmd.toUpperCase()} publicada.`, flags: MessageFlags.Ephemeral });
+      }
+
+      // /rw pve, /rw pvp, /rw 2b → anuncio de reward
+      if (cmd === 'rw') {
+        const clave = interaction.options.getSubcommand();
+        if (!PRODUCTOS[clave]) {
+          return interaction.reply({ content: '❌ Ese token no existe.', flags: MessageFlags.Ephemeral });
+        }
+        await interaction.channel.send({ embeds: [embedReward(clave)], components: [filaReclamar(clave)] });
+        return interaction.reply({ content: `✅ Reward ${clave.toUpperCase()} publicado.`, flags: MessageFlags.Ephemeral });
+      }
+
+      // /say texto → el bot lo escribe y no queda rastro de tu comando
+      if (cmd === 'say') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        await interaction.channel.send({ content: conSaltos(interaction.options.getString('texto')) });
+        return interaction.deleteReply();
+      }
+
+      // /anuncio texto [mencion] → anuncio en embed
+      if (cmd === 'anuncio') {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+        const mencion = interaction.options.getString('mencion');
+        const embed = new EmbedBuilder()
+          .setColor(COLOR_ANUNCIO)
+          .setTitle('📢 ANUNCIO')
+          .setDescription(conSaltos(interaction.options.getString('texto')))
+          .setTimestamp();
+        await interaction.channel.send({ content: mencion || undefined, embeds: [embed] });
+        return interaction.deleteReply();
+      }
     }
 
-    // Botón Comprar → elegir método de pago
+    // ── Botón Comprar → elegir método de pago ──
     // ('shop_comprar' es el botón de los anuncios viejos de /shop; cuenta como PvE)
     if (interaction.isButton() && (interaction.customId.startsWith('comprar:') || interaction.customId === 'shop_comprar')) {
       const clave = interaction.customId === 'shop_comprar' ? 'pve' : interaction.customId.split(':')[1];
@@ -211,9 +381,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
       });
     }
 
-    // Método elegido → crear ticket
+    // ── Método elegido → ticket COMPRA-<TOKEN> ──
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('pago:')) {
-      const { guild, user, member } = interaction;
       const clave = interaction.customId.split(':')[1];
       const prod = PRODUCTOS[clave];
       const metodoId = interaction.values[0];
@@ -222,70 +391,55 @@ client.on(Events.InteractionCreate, async (interaction) => {
       if (!prod || !metodo || !precio) {
         return interaction.update({ content: '❌ Opción no válida, intenta de nuevo.', components: [] });
       }
-      const esVip = member.roles.cache.has(VIP_ROLE_ID);
+      await interaction.deferUpdate();
+      const esVip = interaction.member.roles.cache.has(VIP_ROLE_ID);
 
-      const existente = guild.channels.cache.find((ch) => ch.topic?.startsWith(`ticket:${user.id}`));
-      if (existente) {
-        return interaction.update({ content: `⚠️ Ya tienes un ticket abierto: ${existente}`, components: [] });
-      }
-
-      const permisosLectura = [
-        PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
-        PermissionFlagsBits.AttachFiles, PermissionFlagsBits.ReadMessageHistory,
-      ];
-      const permisos = [
-        { id: guild.roles.everyone.id, deny: [PermissionFlagsBits.ViewChannel] },
-        { id: user.id, allow: permisosLectura },
-        { id: OWNER_ID, allow: permisosLectura },
-        {
-          id: client.user.id,
-          allow: [
-            PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory,
-          ],
-        },
-      ];
-      if (STAFF_ROLE_ID) permisos.push({ id: STAFF_ROLE_ID, allow: permisosLectura });
-
-      const nombre = user.username.toLowerCase().replace(/[^a-z0-9_-]/g, '').slice(0, 20) || user.id;
-      const canal = await guild.channels.create({
-        name: `${clave}-${nombre}`,
-        type: ChannelType.GuildText,
-        topic: `ticket:${user.id}:${clave}`,
-        parent: TICKET_CATEGORY_ID || null,
-        permissionOverwrites: permisos,
-      });
-
-      const embedTicket = new EmbedBuilder()
-        .setColor(prod.color)
-        .setTitle(`🛒 Nueva compra — ${prod.titulo}`)
-        .addFields(
-          { name: '👤 Comprador', value: `${user}`, inline: true },
+      const r = await crearTicket(interaction, {
+        tipo: 'compra',
+        clave,
+        campos: [
+          { name: '👤 Comprador', value: `${interaction.user}`, inline: true },
           { name: '📦 Token', value: clave.toUpperCase(), inline: true },
           { name: `${metodo.emoji} Método`, value: metodo.label, inline: true },
           { name: esVip ? '👑 Precio VIP' : '💰 Precio', value: esVip ? precio.vip : precio.normal },
-        )
-        .setFooter({ text: 'Espera a que el staff te atienda. Manda aquí tu comprobante de pago.' });
-      if (prod.nota) embedTicket.addFields({ name: '⚠️ Importante', value: prod.nota });
-
-      await canal.send({
-        content: `${user} <@${OWNER_ID}>${STAFF_ROLE_ID ? ` <@&${STAFF_ROLE_ID}>` : ''}`,
-        embeds: [embedTicket],
-        components: [filaCerrar()],
+        ],
       });
-
-      return interaction.update({ content: `✅ Ticket creado: ${canal}`, components: [] });
+      return interaction.editReply({
+        content: r.existente ? `⚠️ Ya tienes un ticket abierto: ${r.existente}` : `✅ Ticket creado: ${r.canal}`,
+        components: [],
+      });
     }
 
-    // Cerrar ticket (comprador, dueño, staff o admin)
+    // ── Botón Reclamar token → ticket RW-<TOKEN> ──
+    if (interaction.isButton() && interaction.customId.startsWith('reclamar:')) {
+      const clave = interaction.customId.split(':')[1];
+      if (!PRODUCTOS[clave]) {
+        return interaction.reply({ content: '❌ Este reward ya no está disponible.', flags: MessageFlags.Ephemeral });
+      }
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      const r = await crearTicket(interaction, {
+        tipo: 'rw',
+        clave,
+        campos: [
+          { name: '👤 Reclama', value: `${interaction.user}`, inline: true },
+          { name: '🎁 Token', value: `RW-${clave.toUpperCase()}`, inline: true },
+        ],
+      });
+      return interaction.editReply(
+        r.existente ? `⚠️ Ya tienes un ticket abierto: ${r.existente}` : `✅ Ticket creado: ${r.canal}`,
+      );
+    }
+
+    // ── Cerrar ticket (quien lo abrió, dueño, staff o admin) ──
     if (interaction.isButton() && interaction.customId === 'ticket_cerrar') {
-      const esComprador = interaction.channel.topic?.startsWith(`ticket:${interaction.user.id}`);
+      const esQuienLoAbrio = interaction.channel.topic?.startsWith(`ticket:${interaction.user.id}`);
       const esStaff =
         interaction.user.id === OWNER_ID ||
         (STAFF_ROLE_ID && interaction.member.roles.cache.has(STAFF_ROLE_ID)) ||
         interaction.memberPermissions.has(PermissionFlagsBits.Administrator);
 
-      if (!esComprador && !esStaff) {
+      if (!esQuienLoAbrio && !esStaff) {
         return interaction.reply({ content: '❌ No puedes cerrar este ticket.', flags: MessageFlags.Ephemeral });
       }
 
